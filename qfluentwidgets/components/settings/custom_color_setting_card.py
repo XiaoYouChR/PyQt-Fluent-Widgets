@@ -4,7 +4,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QIcon, QColor
 from PySide6.QtWidgets import QWidget, QLabel, QButtonGroup, QVBoxLayout, QPushButton, QHBoxLayout
 
-from ..dialog_box import ColorDialog
+from ..dialog_box.color_dialog import ColorDialog
 from .expand_setting_card import ExpandGroupSettingCard
 from ..widgets.button import RadioButton
 from ...common.config import qconfig, ColorConfigItem

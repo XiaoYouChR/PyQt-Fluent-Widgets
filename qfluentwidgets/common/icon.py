@@ -3,10 +3,8 @@ from enum import Enum
 from typing import Union
 import json
 
-from PySide6.QtXml import QDomDocument
 from PySide6.QtCore import QRectF, Qt, QFile, QObject, QRect
 from PySide6.QtGui import QIcon, QIconEngine, QColor, QPixmap, QImage, QPainter, QFontDatabase, QFont, QAction, QPainterPath
-from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QApplication
 
 from .config import isDarkTheme, Theme
@@ -163,6 +161,7 @@ def drawSvgIcon(icon, painter, rect):
     rect: QRect | QRectF
         the rect to render icon
     """
+    from PySide6.QtSvg import QSvgRenderer
     renderer = QSvgRenderer(icon)
     renderer.render(painter, QRectF(rect))
 
@@ -192,6 +191,7 @@ def writeSvg(iconPath: str, indexes=None, **attributes):
     f = QFile(iconPath)
     f.open(QFile.ReadOnly)
 
+    from PySide6.QtXml import QDomDocument
     dom = QDomDocument()
     dom.setContent(f.readAll())
 

@@ -1,10 +1,12 @@
-from .navigation_widget import (NavigationWidget, NavigationPushButton, NavigationSeparator, NavigationToolButton,
-                                NavigationTreeWidget, NavigationTreeWidgetBase, NavigationAvatarWidget, NavigationItemHeader,
-                                NavigationUserCard)
-from .navigation_panel import NavigationPanel, NavigationItemPosition, NavigationDisplayMode
-from .navigation_interface import NavigationInterface
-from .navigation_bar import NavigationBarPushButton, NavigationBar
-from .pivot import Pivot, PivotItem
-from .segmented_widget import (SegmentedItem, SegmentedWidget, SegmentedToolItem, SegmentedToolWidget,
-                               SegmentedToggleToolItem, SegmentedToggleToolWidget)
-from .breadcrumb import BreadcrumbBar, BreadcrumbItem
+# coding:utf-8
+from qfluentwidgets._symbols import listDir, listExports, loadExport
+
+__all__ = listExports(__name__)
+
+
+def __getattr__(name: str):
+    return loadExport(__name__, globals(), name)
+
+
+def __dir__() -> list[str]:
+    return listDir(__name__)

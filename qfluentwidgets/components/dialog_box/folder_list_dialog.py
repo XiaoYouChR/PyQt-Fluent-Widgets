@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QLabel,
 
 from ...common.config import isDarkTheme
 from ...common.icon import getIconColor
-from ...common.style_sheet import FluentStyleSheet
+from ...common.style_sheet import FluentStyleSheet, updateDynamicStyle
 from .dialog import Dialog
 from .mask_dialog_base import MaskDialogBase
 from ..widgets.scroll_area import SingleDirectionScrollArea
@@ -152,8 +152,7 @@ class FolderListDialog(MaskDialogBase):
         self.scrollWidget.setObjectName('scrollWidget')
 
         FluentStyleSheet.FOLDER_LIST_DIALOG.apply(self)
-        self.setStyle(QApplication.style())
-
+        updateDynamicStyle(self)
         self.titleLabel.adjustSize()
         self.contentLabel.adjustSize()
         self.completeButton.adjustSize()

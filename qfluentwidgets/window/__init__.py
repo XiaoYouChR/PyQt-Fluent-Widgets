@@ -1,2 +1,12 @@
-from .fluent_window import FluentWindow, MSFluentWindow, SplitFluentWindow, FluentTitleBar, MSFluentTitleBar, SplitTitleBar, FluentBackgroundTheme, FluentWidget, FluentWidgetTitleBar, FluentTitleBarButton
-from .splash_screen import SplashScreen
+# coding:utf-8
+from qfluentwidgets._symbols import listDir, listExports, loadExport
+
+__all__ = listExports(__name__)
+
+
+def __getattr__(name: str):
+    return loadExport(__name__, globals(), name)
+
+
+def __dir__() -> list[str]:
+    return listDir(__name__)

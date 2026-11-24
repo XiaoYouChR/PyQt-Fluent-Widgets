@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QApplication, QPushButton, QWidget, QHBoxLayout, Q
 
 from ...common.font import setFont
 from ...common.router import qrouter
-from ...common.style_sheet import themeColor, FluentStyleSheet
+from ...common.style_sheet import themeColor, FluentStyleSheet, updateDynamicStyle
 from ...common.color import autoFallbackThemeColor
 from ...common.animation import FluentAnimation, FluentAnimationType, FluentAnimationProperty, ScaleSlideAnimation
 from ..widgets.button import PushButton
@@ -34,7 +34,7 @@ class PivotItem(PushButton):
 
         self.isSelected = isSelected
         self.setProperty('isSelected', isSelected)
-        self.setStyle(QApplication.style())
+        updateDynamicStyle(self)
         self.update()
 
 

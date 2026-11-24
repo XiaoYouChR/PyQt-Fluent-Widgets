@@ -54,7 +54,7 @@ class TableItemDelegate(QStyledItemDelegate):
     def createEditor(self, parent: QWidget, option: QStyleOptionViewItem, index: QModelIndex) -> QWidget:
         lineEdit = LineEdit(parent)
         lineEdit.setProperty("transparent", False)
-        lineEdit.setStyle(QApplication.style())
+        updateDynamicStyle(lineEdit)
         lineEdit.setText(option.text)
         lineEdit.setClearButtonEnabled(True)
         return lineEdit

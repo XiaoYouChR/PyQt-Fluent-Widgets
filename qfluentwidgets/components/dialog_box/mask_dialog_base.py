@@ -1,5 +1,5 @@
 # coding:utf-8
-from PySide6.QtCore import QEasingCurve, QPropertyAnimation, Qt, QEvent, QPoint
+from PySide6.QtCore import QAbstractAnimation, QEasingCurve, QPropertyAnimation, Qt, QEvent, QPoint
 from PySide6.QtGui import QColor, QResizeEvent
 from PySide6.QtWidgets import (QDialog, QGraphicsDropShadowEffect,
                              QGraphicsOpacityEffect, QHBoxLayout, QWidget, QFrame)
@@ -30,9 +30,19 @@ class MaskDialogBase(QDialog):
         self._hBoxLayout.addWidget(self.widget)
         self.setShadowEffect()
 
-        self.window().installEventFilter(self)
+        self._pendingDoneCode = None
         self.windowMask.installEventFilter(self)
         self.widget.installEventFilter(self)
+
+    def _installHostWindowFilter(self):
+        win = self.window()
+        if win is not None and win is not self:
+            win.installEventFilter(self)
+
+    def _removeHostWindowFilter(self):
+        win = self.window()
+        if win is not None and win is not self:
+            win.removeEventFilter(self)
 
     def setShadowEffect(self, blurRadius=60, offset=(0, 10), color=QColor(0, 0, 0, 100)):
         """ add shadow to dialog """
@@ -51,6 +61,7 @@ class MaskDialogBase(QDialog):
 
     def showEvent(self, e):
         """ fade in """
+        self._installHostWindowFilter()
         opacityEffect = QGraphicsOpacityEffect(self)
         self.setGraphicsEffect(opacityEffect)
         opacityAni = QPropertyAnimation(opacityEffect, b'opacity', self)
@@ -58,12 +69,20 @@ class MaskDialogBase(QDialog):
         opacityAni.setEndValue(1)
         opacityAni.setDuration(200)
         opacityAni.setEasingCurve(QEasingCurve.InSine)
-        opacityAni.finished.connect(lambda: self.setGraphicsEffect(None))
-        opacityAni.start()
+        opacityAni.finished.connect(self._onShowAniFinished)
+        opacityAni.start(QAbstractAnimation.DeletionPolicy.DeleteWhenStopped)
         super().showEvent(e)
+
+    def _onShowAniFinished(self):
+        self.setGraphicsEffect(None)
+
+    def hideEvent(self, e):
+        self._removeHostWindowFilter()
+        super().hideEvent(e)
 
     def done(self, code):
         """ fade out """
+        self._pendingDoneCode = code
         self.widget.setGraphicsEffect(None)
         opacityEffect = QGraphicsOpacityEffect(self)
         self.setGraphicsEffect(opacityEffect)
@@ -71,10 +90,17 @@ class MaskDialogBase(QDialog):
         opacityAni.setStartValue(1)
         opacityAni.setEndValue(0)
         opacityAni.setDuration(100)
-        opacityAni.finished.connect(lambda: self._onDone(code))
-        opacityAni.start()
+        opacityAni.finished.connect(self._onDoneAniFinished)
+        opacityAni.start(QAbstractAnimation.DeletionPolicy.DeleteWhenStopped)
+
+    def _onDoneAniFinished(self):
+        code = self._pendingDoneCode
+        self._pendingDoneCode = None
+        if code is not None:
+            self._onDone(code)
 
     def _onDone(self, code):
+        self._removeHostWindowFilter()
         self.setGraphicsEffect(None)
         QDialog.done(self, code)
 

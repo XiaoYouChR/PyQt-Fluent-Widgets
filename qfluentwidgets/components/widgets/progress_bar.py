@@ -178,6 +178,7 @@ class IndeterminateProgressBar(QProgressBar):
         self._darkBarColor = QColor()
 
         self._isError = False
+        self._targetState = QParallelAnimationGroup.Stopped
 
         self.aniGroup = QParallelAnimationGroup(self)
         self.longBarAniGroup = QSequentialAnimationGroup(self)
@@ -238,39 +239,66 @@ class IndeterminateProgressBar(QProgressBar):
         self.update()
 
     def start(self):
+        self._targetState = QParallelAnimationGroup.Running
         self.shortPos = 0
         self.longPos = 0
-        self.aniGroup.start()
+        if self.isVisible():
+            self.aniGroup.start()
         self.update()
 
     def stop(self):
+        self._targetState = QParallelAnimationGroup.Stopped
         self.aniGroup.stop()
         self.shortPos = 0
         self.longPos = 0
         self.update()
 
     def isStarted(self):
-        return self.aniGroup.state() == QParallelAnimationGroup.Running
+        return self._targetState == QParallelAnimationGroup.Running and not self._isError
 
     def pause(self):
+        if self._targetState == QParallelAnimationGroup.Running:
+            self._targetState = QParallelAnimationGroup.Paused
         self.aniGroup.pause()
         self.update()
 
     def resume(self):
-        self.aniGroup.resume()
+        if self._targetState == QParallelAnimationGroup.Paused:
+            self._targetState = QParallelAnimationGroup.Running
+        if self.isStarted() and self.isVisible():
+            if self.aniGroup.state() == QParallelAnimationGroup.Paused:
+                self.aniGroup.resume()
+            elif self.aniGroup.state() == QParallelAnimationGroup.Stopped:
+                self.aniGroup.start()
         self.update()
 
     def setPaused(self, isPaused: bool):
-        self.aniGroup.setPaused(isPaused)
-        self.update()
+        if isPaused:
+            self.pause()
+        else:
+            self.resume()
 
     def isPaused(self):
-        return self.aniGroup.state() == QParallelAnimationGroup.Paused
+        return self._targetState == QParallelAnimationGroup.Paused
 
     def error(self):
         self._isError = True
+        self._targetState = QParallelAnimationGroup.Stopped
         self.aniGroup.stop()
         self.update()
+
+    def showEvent(self, e):
+        super().showEvent(e)
+        if self.isStarted():
+            if self.aniGroup.state() == QParallelAnimationGroup.Paused:
+                self.aniGroup.resume()
+            elif self.aniGroup.state() == QParallelAnimationGroup.Stopped:
+                self.aniGroup.start()
+
+    def hideEvent(self, e):
+        if self.aniGroup.state() == QParallelAnimationGroup.Running:
+            self.aniGroup.pause()
+        super().hideEvent(e)
 
     def setError(self, isError: bool):
         self._isError = isError

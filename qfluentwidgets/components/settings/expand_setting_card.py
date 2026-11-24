@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QFrame, QWidget, QAbstractButton, QApplication, QS
 
 from ...common.config import isDarkTheme
 from ...common.icon import FluentIcon as FIF
-from ...common.style_sheet import FluentStyleSheet
+from ...common.style_sheet import FluentStyleSheet, updateDynamicStyle
 from .setting_card import SettingCard, SettingIconWidget
 from ..layout.v_box_layout import VBoxLayout
 
@@ -264,8 +264,7 @@ class ExpandSettingCard(QScrollArea):
         # update style sheet
         self.isExpand = isExpand
         self.setProperty('isExpand', isExpand)
-        self.setStyle(QApplication.style())
-
+        updateDynamicStyle(self)
         # start expand animation
         if isExpand:
             h = self.viewLayout.sizeHint().height()

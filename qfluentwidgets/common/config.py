@@ -5,14 +5,10 @@ from enum import Enum
 from pathlib import Path
 from typing import List
 
-import darkdetect
-from PySide6.QtCore import QObject, Signal, qVersion
-from PySide6.QtGui import QColor
+from PySide6.QtCore import QObject, Qt, Signal, qVersion
+from PySide6.QtGui import QColor, QGuiApplication
 
 from .exception_handler import exceptionHandler
-
-
-ALERT = "\n\033[1;33m📢 Tips:\033[0m QFluentWidgets Pro is now released. Click \033[1;96mhttps://qfluentwidgets.com/pages/pro\033[0m to learn more about it.\n"
 
 
 class Theme(Enum):
@@ -396,10 +392,23 @@ class QConfig(QObject):
 
     @theme.setter
     def theme(self, t):
-        """ chaneg the theme without modifying the config file """
+        """ change the theme without modifying the config file """
         if t == Theme.AUTO:
-            t = darkdetect.theme()
-            t = Theme(t) if t else Theme.LIGHT
+            app = QGuiApplication.instance()
+            if app is not None:
+                scheme = app.styleHints().colorScheme()
+                if scheme == Qt.ColorScheme.Dark:
+                    t = Theme.DARK
+                elif scheme == Qt.ColorScheme.Light:
+                    t = Theme.LIGHT
+                else:
+                    import darkdetect
+                    detected = darkdetect.theme()
+                    t = Theme(detected) if detected else Theme.LIGHT
+            else:
+                import darkdetect
+                detected = darkdetect.theme()
+                t = Theme(detected) if detected else Theme.LIGHT
 
         self._cfg._theme = t
 
@@ -407,10 +416,6 @@ class QConfig(QObject):
 QT_VERSION = tuple([int(v) for v in qVersion().split('.')])
 
 qconfig = QConfig()
-try:
-    print(ALERT)
-except UnicodeEncodeError:
-    print(ALERT.replace("📢", ""))
 
 
 def isDarkTheme():

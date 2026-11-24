@@ -16,6 +16,10 @@ setuptools.setup(
     license="GPLv3",
     url="https://qfluentwidgets.com",
     packages=setuptools.find_packages(),
+    package_data={
+        "qfluentwidgets": ["_rc/resource.rcc"],
+    },
+    include_package_data=True,
     install_requires=[
         "PySide6",
         "PySideSix-Frameless-Window>=0.8.0",

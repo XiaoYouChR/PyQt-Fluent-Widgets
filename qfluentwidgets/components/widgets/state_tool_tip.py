@@ -2,9 +2,9 @@
 from PySide6.QtCore import QEasingCurve, QPropertyAnimation, Qt, QTimer, Signal, QSize, QPoint, QRectF
 from PySide6.QtGui import QPainter
 from PySide6.QtWidgets import QLabel, QWidget, QToolButton, QGraphicsOpacityEffect
-from PySide6.QtSvgWidgets import QSvgWidget
 
-from ...common import FluentStyleSheet, isDarkTheme, Theme
+from ...common.config import isDarkTheme, Theme
+from ...common.style_sheet import FluentStyleSheet
 from ...common.icon import FluentIcon as FIF
 
 
@@ -74,7 +74,7 @@ class StateToolTip(QWidget):
         self.rotateTimer = QTimer(self)
 
         self.opacityEffect = QGraphicsOpacityEffect(self)
-        self.animation = QPropertyAnimation(self.opacityEffect, b"opacity")
+        self.animation = QPropertyAnimation(self.opacityEffect, b"opacity", self)
         self.closeButton = StateCloseButton(self)
 
         self.isDone = False
@@ -98,7 +98,14 @@ class StateToolTip(QWidget):
         self.__setQss()
         self.__initLayout()
 
-        self.rotateTimer.start()
+    def showEvent(self, e):
+        super().showEvent(e)
+        if not self.isDone and not self.rotateTimer.isActive():
+            self.rotateTimer.start()
+
+    def hideEvent(self, e):
+        self.rotateTimer.stop()
+        super().hideEvent(e)
 
     def __initLayout(self):
         """ initialize layout """
@@ -137,7 +144,8 @@ class StateToolTip(QWidget):
         self.isDone = isDone
         self.update()
         if isDone:
-            QTimer.singleShot(1000, self.__fadeOut)
+            self.rotateTimer.stop()
+            QTimer.singleShot(1000, self, self.__fadeOut)
 
     def __onCloseButtonClicked(self):
         """ close button clicked slot """

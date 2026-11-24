@@ -5,7 +5,7 @@ from PySide6.QtCore import Qt, Signal, QRectF, QDate, QPoint, Property
 from PySide6.QtGui import QPainter
 from PySide6.QtWidgets import QWidget, QPushButton, QApplication
 
-from ...common.style_sheet import FluentStyleSheet
+from ...common.style_sheet import FluentStyleSheet, updateDynamicStyle
 from ...common.icon import FluentIcon as FIF
 from ..widgets.flyout import Flyout, FlyoutAnimationType
 from .calendar_view import CalendarView
@@ -40,7 +40,7 @@ class CalendarPicker(QPushButton):
         self._date = QDate()
         self.setText(self.tr('Pick a date'))
         self.setProperty('hasDate', False)
-        self.setStyle(QApplication.style())
+        updateDynamicStyle(self)
         self.update()
 
     def getDateFormat(self):
@@ -76,7 +76,7 @@ class CalendarPicker(QPushButton):
         self._date = QDate(date)
         self.setText(date.toString(self.dateFormat))
         self.setProperty('hasDate', True)
-        self.setStyle(QApplication.style())
+        updateDynamicStyle(self)
         self.update()
 
         self.dateChanged.emit(date)

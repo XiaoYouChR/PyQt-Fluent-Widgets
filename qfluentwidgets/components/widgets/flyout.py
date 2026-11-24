@@ -227,7 +227,6 @@ class Flyout(QWidget):
                                 Qt.NoDropShadowWindowHint)
         else:
             self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint | Qt.NoDropShadowWindowHint)
-            QApplication.instance().installEventFilter(self)
 
     def eventFilter(self, watched, event):
         if sys.platform == "darwin" and self.isMacInputMethodEnabled:
@@ -248,13 +247,28 @@ class Flyout(QWidget):
         self.view.setGraphicsEffect(self.shadowEffect)
 
     def closeEvent(self, e):
+        if sys.platform == "darwin" and self.isMacInputMethodEnabled:
+            app = QApplication.instance()
+            if app is not None:
+                app.removeEventFilter(self)
         if self.isDeleteOnClose:
             self.deleteLater()
 
         super().closeEvent(e)
         self.closed.emit()
 
+    def hideEvent(self, e):
+        if sys.platform == "darwin" and self.isMacInputMethodEnabled:
+            app = QApplication.instance()
+            if app is not None:
+                app.removeEventFilter(self)
+        super().hideEvent(e)
+
     def showEvent(self, e):
+        if sys.platform == "darwin" and self.isMacInputMethodEnabled:
+            app = QApplication.instance()
+            if app is not None:
+                app.installEventFilter(self)
         # fixes #780
         self.activateWindow()
         super().showEvent(e)
@@ -348,7 +362,7 @@ class Flyout(QWidget):
         self.fadeOutAni.setStartValue(1)
         self.fadeOutAni.setEndValue(0)
         self.fadeOutAni.setDuration(120)
-        self.fadeOutAni.start()
+        self.fadeOutAni.start(QPropertyAnimation.DeletionPolicy.DeleteWhenStopped)
 
 
 class FlyoutAnimationManager(QObject):
@@ -357,7 +371,7 @@ class FlyoutAnimationManager(QObject):
     managers = {}
 
     def __init__(self, flyout: Flyout):
-        super().__init__()
+        super().__init__(parent=flyout)
         self.flyout = flyout
         self.aniGroup = QParallelAnimationGroup(self)
         self.slideAni = QPropertyAnimation(flyout, b'pos', self)

@@ -78,6 +78,7 @@ class IndeterminateProgressRing(QProgressBar):
 
         self._startAngle = -180
         self._spanAngle = 0
+        self._isRunning = False
 
         self.startAngleAni1 = QPropertyAnimation(self, b'startAngle', self)
         self.startAngleAni2 = QPropertyAnimation(self, b'startAngle', self)
@@ -148,15 +149,31 @@ class IndeterminateProgressRing(QProgressBar):
 
     def start(self):
         """ start spin """
+        self._isRunning = True
         self._startAngle = 0
         self._spanAngle = 0
-        self.aniGroup.start()
+        if self.isVisible():
+            self.aniGroup.start()
 
     def stop(self):
         """ stop spin """
+        self._isRunning = False
         self.aniGroup.stop()
         self.startAngle = 0
         self.spanAngle = 0
+
+    def isStarted(self):
+        return self._isRunning
+
+    def showEvent(self, e):
+        super().showEvent(e)
+        if self._isRunning and self.aniGroup.state() != QParallelAnimationGroup.Running:
+            self.aniGroup.start()
+
+    def hideEvent(self, e):
+        if self.aniGroup.state() == QParallelAnimationGroup.Running:
+            self.aniGroup.stop()
+        super().hideEvent(e)
 
     def lightBarColor(self):
         return self._lightBarColor if self._lightBarColor.isValid() else themeColor()

@@ -5,10 +5,11 @@ from typing import Union
 import weakref
 
 from PySide6.QtCore import (Qt, QEvent, QSize, QRectF, QObject, QPropertyAnimation,
-                          QEasingCurve, QTimer, Signal, QParallelAnimationGroup, QPoint)
+                          QEasingCurve, QTimer, Signal, QParallelAnimationGroup, QPoint, QAbstractAnimation)
 from PySide6.QtGui import QPainter, QIcon, QColor
 from PySide6.QtWidgets import (QWidget, QFrame, QLabel, QHBoxLayout, QVBoxLayout,
                              QToolButton, QGraphicsOpacityEffect, QApplication)
+from shiboken6 import isValid
 
 from ...common.auto_wrap import TextWrap
 from ...common.style_sheet import FluentStyleSheet, themeColor
@@ -112,7 +113,7 @@ class InfoBar(QFrame):
         self.titleLabel = QLabel(self)
         self.contentLabel = QLabel(self)
         self.closeButton = TransparentToolButton(FIF.CLOSE, self)
-        self.iconWidget = InfoIconWidget(icon)
+        self.iconWidget = InfoIconWidget(icon, self)
 
         self.hBoxLayout = QHBoxLayout(self)
         self.textLayout = QHBoxLayout() if self.orient == Qt.Horizontal else QVBoxLayout()
@@ -237,16 +238,23 @@ class InfoBar(QFrame):
         return super().eventFilter(obj, e)
 
     def closeEvent(self, e):
+        if self.parent() and isValid(self.parent()):
+            self.parent().removeEventFilter(self)
         self.closedSignal.emit()
         self.deleteLater()
         e.ignore()
+
+    def hideEvent(self, e):
+        if self.parent() and isValid(self.parent()):
+            self.parent().removeEventFilter(self)
+        super().hideEvent(e)
 
     def showEvent(self, e):
         self._adjustText()
         super().showEvent(e)
 
         if self.duration >= 0:
-            QTimer.singleShot(self.duration, self.__fadeOut)
+            QTimer.singleShot(self.duration, self, self.__fadeOut)
 
         if self.position != InfoBarPosition.NONE:
             manager = InfoBarManager.make(self.position)
@@ -346,35 +354,37 @@ class InfoBarManager(QObject):
         if p not in self.infoBars:
             p.installEventFilter(self)
             self.infoBars[p] = []
-            self.aniGroups[p] = QParallelAnimationGroup(self)
+            self.aniGroups[p] = QParallelAnimationGroup(p)
 
         if infoBar in self.infoBars[p]:
             return
 
         # add drop animation
         if self.infoBars[p]:
-            dropAni = QPropertyAnimation(infoBar, b'pos')
+            dropAni = QPropertyAnimation(infoBar, b'pos', infoBar)
             dropAni.setDuration(200)
 
             self.aniGroups[p].addAnimation(dropAni)
-            self.dropAnis.append(dropAni)
-
             infoBar.setProperty('dropAni', dropAni)
 
         # add slide animation
         self.infoBars[p].append(infoBar)
         slideAni = self._createSlideAni(infoBar)
-        self.slideAnis.append(slideAni)
 
         infoBar.setProperty('slideAni', slideAni)
-        infoBar.closedSignal.connect(lambda: self.remove(infoBar))
+        infoBar.closedSignal.connect(self._onInfoBarClosed)
 
-        slideAni.start()
+        slideAni.start(QAbstractAnimation.DeletionPolicy.DeleteWhenStopped)
+
+    def _onInfoBarClosed(self):
+        infoBar = self.sender()
+        if isinstance(infoBar, InfoBar):
+            self.remove(infoBar)
 
     def remove(self, infoBar: InfoBar):
         """ remove info bar """
         p = infoBar.parent()
-        if p not in self.infoBars:
+        if p is None or p not in self.infoBars:
             return
 
         if infoBar not in self.infoBars[p]:
@@ -384,21 +394,30 @@ class InfoBarManager(QObject):
 
         # remove drop animation
         dropAni = infoBar.property('dropAni')   # type: QPropertyAnimation
-        if dropAni:
-            self.aniGroups[p].removeAnimation(dropAni)
-            self.dropAnis.remove(dropAni)
+        if dropAni is not None and isValid(dropAni):
+            aniGroup = self.aniGroups.get(p)
+            if aniGroup is not None and isValid(aniGroup):
+                aniGroup.removeAnimation(dropAni)
+            infoBar.setProperty('dropAni', None)
 
-        # remove slider animation
-        slideAni = infoBar.property('slideAni')
-        if slideAni:
-            self.slideAnis.remove(slideAni)
+        infoBar.setProperty('slideAni', None)
+
+        if not self.infoBars[p]:
+            if isValid(p):
+                p.removeEventFilter(self)
+            aniGroup = self.aniGroups.pop(p, None)
+            if aniGroup is not None and isValid(aniGroup):
+                aniGroup.stop()
+                aniGroup.deleteLater()
+            self.infoBars.pop(p, None)
+            return
 
         # adjust the position of the remaining info bars
         self._updateDropAni(p)
         self.aniGroups[p].start()
 
     def _createSlideAni(self, infoBar: InfoBar):
-        slideAni = QPropertyAnimation(infoBar, b'pos')
+        slideAni = QPropertyAnimation(infoBar, b'pos', infoBar)
         slideAni.setEasingCurve(QEasingCurve.OutQuad)
         slideAni.setDuration(200)
 
@@ -410,11 +429,33 @@ class InfoBarManager(QObject):
     def _updateDropAni(self, parent):
         for bar in self.infoBars[parent]:
             ani = bar.property('dropAni')
-            if not ani:
+            if ani is None or not isValid(ani):
                 continue
 
             ani.setStartValue(bar.pos())
             ani.setEndValue(self._pos(bar))
+
+    @classmethod
+    def clearAll(cls):
+        """Clear active InfoBar registries and parent event filters on runtime unload."""
+        for managerCls in cls.managers.values():
+            inst = managerCls._instance
+            if inst is None or not isValid(inst):
+                continue
+            for p in list(inst.infoBars.keys()):
+                if isValid(p):
+                    p.removeEventFilter(inst)
+            for aniGroup in list(inst.aniGroups.values()):
+                if isValid(aniGroup):
+                    aniGroup.stop()
+                    aniGroup.deleteLater()
+            inst.infoBars.clear()
+            inst.aniGroups.clear()
+        if InfoBar._desktopView is not None:
+            if isValid(InfoBar._desktopView):
+                InfoBar._desktopView.close()
+                InfoBar._desktopView.deleteLater()
+            InfoBar._desktopView = None
 
     def _pos(self, infoBar: InfoBar, parentSize=None) -> QPoint:
         """ return the position of info bar """

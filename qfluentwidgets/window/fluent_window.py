@@ -9,12 +9,14 @@ from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QApplic
 from ..common.config import qconfig
 from ..common.icon import FluentIconBase, toQIcon, drawIcon
 from ..common.router import qrouter
-from ..common.style_sheet import FluentStyleSheet, isDarkTheme, setTheme, Theme
+from ..common.style_sheet import FluentStyleSheet, isDarkTheme, setTheme, Theme, updateDynamicStyle
 from ..common.animation import BackgroundAnimationWidget
 from ..components.widgets.frameless_window import FramelessWindow
 from ..components.widgets.label import CaptionLabel
-from ..components.navigation import (NavigationInterface, NavigationBar, NavigationItemPosition,
-                                     NavigationBarPushButton, NavigationTreeWidget)
+from ..components.navigation.navigation_interface import NavigationInterface
+from ..components.navigation.navigation_bar import NavigationBar, NavigationBarPushButton
+from ..components.navigation.navigation_panel import NavigationItemPosition
+from ..components.navigation.navigation_widget import NavigationTreeWidget
 from .stacked_widget import StackedWidget
 
 from qframelesswindow import TitleBar, TitleBarBase, TitleBarButton
@@ -162,8 +164,7 @@ class FluentWindowBase(FluentWidget):
             return
 
         self.stackedWidget.setProperty("isTransparent", isTransparent)
-        self.stackedWidget.setStyle(QApplication.style())
-
+        updateDynamicStyle(self.stackedWidget)
     def systemTitleBarRect(self, size: QSize) -> QRect:
         """ Returns the system title bar rect, only works for macOS
 

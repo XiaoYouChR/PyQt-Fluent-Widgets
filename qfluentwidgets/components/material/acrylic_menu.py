@@ -137,7 +137,7 @@ class AcrylicCompleterMenu(AcrylicMenuBase, CompleterMenu):
         self.setUpMenu(AcrylicCompleterMenuActionListWidget(self))
 
         self.view.setObjectName('completerListWidget')
-        self.view.setItemDelegate(IndicatorMenuItemDelegate())
+        self.view.setItemDelegate(IndicatorMenuItemDelegate(self.view))
         self.view.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.setItemHeight(33)
 

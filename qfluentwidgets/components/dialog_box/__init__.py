@@ -1,6 +1,12 @@
-from .color_dialog import ColorDialog
-from .dialog import Dialog, MessageBox
-from .folder_list_dialog import FolderListDialog
-from .message_dialog import MessageDialog
-from .message_box_base import MessageBoxBase
-from .mask_dialog_base import MaskDialogBase
+# coding:utf-8
+from qfluentwidgets._symbols import listDir, listExports, loadExport
+
+__all__ = listExports(__name__)
+
+
+def __getattr__(name: str):
+    return loadExport(__name__, globals(), name)
+
+
+def __dir__() -> list[str]:
+    return listDir(__name__)

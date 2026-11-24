@@ -13,7 +13,7 @@ from ...common.animation import TranslateYAnimation
 from ...common.icon import FluentIconBase, isDarkTheme
 from ...common.icon import FluentIcon as FIF
 from ...common.font import setFont
-from ...common.style_sheet import FluentStyleSheet
+from ...common.style_sheet import FluentStyleSheet, updateDynamicStyle
 
 
 class ModelComboBoxBase:
@@ -465,8 +465,7 @@ class ModelComboBox(QPushButton, ModelComboBoxBase):
             return
 
         self.setProperty("isPlaceholderText", isPlaceholder)
-        self.setStyle(QApplication.style())
-
+        updateDynamicStyle(self)
     def mouseReleaseEvent(self, e):
         super().mouseReleaseEvent(e)
         self._toggleComboMenu()

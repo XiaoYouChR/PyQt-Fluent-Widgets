@@ -1,104 +1,24 @@
 # coding:utf-8
 from enum import Enum
 from string import Template
-import sys
 from typing import List, Union
 import weakref
 
-from PySide6.QtCore import QFile, QObject, QEvent, QDynamicPropertyChangeEvent
+from PySide6.QtCore import QFile, QObject, QEvent, Qt
 from PySide6.QtGui import QColor
-from PySide6.QtWidgets import QWidget, QApplication, QStyleFactory
+from PySide6.QtWidgets import QWidget, QApplication
+from shiboken6 import isValid
 
-from .config import qconfig, Theme, isDarkTheme, QT_VERSION
+from .config import qconfig, Theme, isDarkTheme
 
-
-class StyleSheetManager(QObject):
-    """ Style sheet manager """
-
-    def __init__(self):
-        self.widgets = weakref.WeakKeyDictionary()
-
-    def register(self, source, widget: QWidget, reset=True):
-        """ register widget to manager
-
-        Parameters
-        ----------
-        source: str | StyleSheetBase
-            qss source, it could be:
-            * `str`: qss file path
-            * `StyleSheetBase`: style sheet instance
-
-        widget: QWidget
-            the widget to set style sheet
-
-        reset: bool
-            whether to reset the qss source
-        """
-        if isinstance(source, str):
-            source = StyleSheetFile(source)
-
-        if widget not in self.widgets:
-            widget.destroyed.connect(lambda: self.deregister(widget))
-            widget.installEventFilter(CustomStyleSheetWatcher(widget))
-            widget.installEventFilter(DirtyStyleSheetWatcher(widget))
-            self.widgets[widget] = StyleSheetCompose([source, CustomStyleSheet(widget)])
-
-        if not reset:
-            self.source(widget).add(source)
-        else:
-            self.widgets[widget] = StyleSheetCompose([source, CustomStyleSheet(widget)])
-
-    def deregister(self, widget: QWidget):
-        """ deregister widget from manager """
-        if widget not in self.widgets:
-            return
-
-        self.widgets.pop(widget)
-
-    def items(self):
-        return self.widgets.items()
-
-    def source(self, widget: QWidget):
-        """ get the qss source of widget """
-        return self.widgets.get(widget, StyleSheetCompose([]))
-
-
-styleSheetManager = StyleSheetManager()
+MANAGED_BEGIN = "/* qfw:begin */"
+MANAGED_END = "/* qfw:end */"
 
 
 class QssTemplate(Template):
     """ style sheet template """
 
     delimiter = '--'
-
-
-def applyThemeColor(qss: str):
-    """ apply theme color to style sheet
-
-    Parameters
-    ----------
-    qss: str
-        the style sheet string to apply theme color, the substituted variable
-        should be equal to the value of `ThemeColor` and starts width `--`, i.e `--ThemeColorPrimary`
-    """
-    template = QssTemplate(qss)
-    mappings = {c.value: c.name() for c in ThemeColor._member_map_.values()}
-    return template.safe_substitute(mappings)
-
-
-def renderQss(qss: str):
-    """ render font and theme color to style sheet
-
-    Parameters
-    ----------
-    qss: str
-        the style sheet string to apply theme color, the substituted variable
-        should be equal to the value of `ThemeColor` and starts width `--`, i.e `--ThemeColorPrimary`
-    """
-    template = QssTemplate(qss)
-    mappings = {c.value: c.name() for c in ThemeColor._member_map_.values()}
-    mappings["FontFamilies"] = ",".join([f"'{i}'" for i in qconfig.get(qconfig.fontFamilies)])
-    return template.safe_substitute(mappings)
 
 
 class StyleSheetBase:
@@ -160,6 +80,28 @@ class FluentStyleSheet(StyleSheetBase, Enum):
         return f":/qfluentwidgets/qss/{theme.value.lower()}/{self.value}.qss"
 
 
+APP_SHEETS = frozenset({
+    FluentStyleSheet.BUTTON,
+    FluentStyleSheet.CALENDAR_PICKER,
+    FluentStyleSheet.CARD_WIDGET,
+    FluentStyleSheet.CHECK_BOX,
+    FluentStyleSheet.COMBO_BOX,
+    FluentStyleSheet.FLIP_VIEW,
+    FluentStyleSheet.FLUENT_WINDOW,
+    FluentStyleSheet.INFO_BADGE,
+    FluentStyleSheet.LABEL,
+    FluentStyleSheet.LINE_EDIT,
+    FluentStyleSheet.LIST_VIEW,
+    FluentStyleSheet.MENU,
+    FluentStyleSheet.PIPS_PAGER,
+    FluentStyleSheet.SETTING_CARD_GROUP,
+    FluentStyleSheet.SPIN_BOX,
+    FluentStyleSheet.TIME_PICKER,
+})
+
+_APP_SHEET_ORDER = tuple(s for s in FluentStyleSheet if s in APP_SHEETS)
+
+
 class StyleSheetFile(StyleSheetBase):
     """ Style sheet file """
 
@@ -196,35 +138,42 @@ class CustomStyleSheet(StyleSheetBase):
 
     def setCustomStyleSheet(self, lightQss: str, darkQss: str):
         """ set custom style sheet in light and dark theme mode """
-        self.setLightStyleSheet(lightQss)
-        self.setDarkStyleSheet(darkQss)
+        widget = self.widget
+        if widget is not None and isValid(widget):
+            widget.setProperty(self.LIGHT_QSS_KEY, lightQss)
+            widget.setProperty(self.DARK_QSS_KEY, darkQss)
+            addStyleSheet(widget, self)
         return self
 
     def setLightStyleSheet(self, qss: str):
         """ set the style sheet in light mode """
-        if self.widget:
-            self.widget.setProperty(self.LIGHT_QSS_KEY, qss)
-
+        widget = self.widget
+        if widget is not None and isValid(widget):
+            widget.setProperty(self.LIGHT_QSS_KEY, qss)
+            addStyleSheet(widget, self)
         return self
 
     def setDarkStyleSheet(self, qss: str):
         """ set the style sheet in dark mode """
-        if self.widget:
-            self.widget.setProperty(self.DARK_QSS_KEY, qss)
-
+        widget = self.widget
+        if widget is not None and isValid(widget):
+            widget.setProperty(self.DARK_QSS_KEY, qss)
+            addStyleSheet(widget, self)
         return self
 
     def lightStyleSheet(self) -> str:
-        if not self.widget:
+        widget = self.widget
+        if widget is None or not isValid(widget):
             return ''
 
-        return self.widget.property(self.LIGHT_QSS_KEY) or ''
+        return widget.property(self.LIGHT_QSS_KEY) or ''
 
     def darkStyleSheet(self) -> str:
-        if not self.widget:
+        widget = self.widget
+        if widget is None or not isValid(widget):
             return ''
 
-        return self.widget.property(self.DARK_QSS_KEY) or ''
+        return widget.property(self.DARK_QSS_KEY) or ''
 
     def content(self, theme=Theme.AUTO) -> str:
         theme = qconfig.theme if theme == Theme.AUTO else theme
@@ -233,34 +182,6 @@ class CustomStyleSheet(StyleSheetBase):
             return self.lightStyleSheet()
 
         return self.darkStyleSheet()
-
-
-class CustomStyleSheetWatcher(QObject):
-    """ Custom style sheet watcher """
-
-    def eventFilter(self, obj: QWidget, e: QEvent):
-        if e.type() != QEvent.DynamicPropertyChange:
-            return super().eventFilter(obj, e)
-
-        name = QDynamicPropertyChangeEvent(e).propertyName().data().decode()
-        if name in [CustomStyleSheet.LIGHT_QSS_KEY, CustomStyleSheet.DARK_QSS_KEY]:
-            addStyleSheet(obj, CustomStyleSheet(obj))
-
-        return super().eventFilter(obj, e)
-
-
-class DirtyStyleSheetWatcher(QObject):
-    """ Dirty style sheet watcher """
-
-    def eventFilter(self, obj: QWidget, e: QEvent):
-        if e.type() != QEvent.Type.Paint or not obj.property('dirty-qss'):
-            return super().eventFilter(obj, e)
-
-        obj.setProperty('dirty-qss', False)
-        if obj in styleSheetManager.widgets:
-            obj.setStyleSheet(getStyleSheet(styleSheetManager.source(obj)))
-
-        return super().eventFilter(obj, e)
 
 
 class StyleSheetCompose(StyleSheetBase):
@@ -288,8 +209,26 @@ class StyleSheetCompose(StyleSheetBase):
         self.sources.remove(source)
 
 
-def getStyleSheetFromFile(file: Union[str, QFile]):
-    """ get style sheet from qss file """
+_rawQssByPath: dict[str, str] = {}
+_appQssCache: dict[tuple, str] = {}
+_installedKey: tuple | None = None
+_isLazySync = False
+
+
+def _renderKey() -> tuple[Theme, int, tuple[str, ...]]:
+    color = qconfig.get(qconfig._cfg.themeColor)
+    fonts = tuple(qconfig.get(qconfig.fontFamilies))
+    return (qconfig.theme, color.rgba(), fonts)
+
+
+def _templateVars(fonts: tuple[str, ...] | None = None) -> dict[str, str]:
+    mappings = {c.value: c.name() for c in ThemeColor._member_map_.values()}
+    fontList = fonts if fonts is not None else tuple(qconfig.get(qconfig.fontFamilies))
+    mappings["FontFamilies"] = ",".join(f"'{i}'" for i in fontList)
+    return mappings
+
+
+def _readFileText(file: Union[str, QFile]) -> str:
     f = QFile(file)
     f.open(QFile.ReadOnly)
     qss = str(f.readAll(), encoding='utf-8')
@@ -297,19 +236,231 @@ def getStyleSheetFromFile(file: Union[str, QFile]):
     return qss
 
 
-def getStyleSheet(source: Union[str, StyleSheetBase], theme=Theme.AUTO):
-    """ get style sheet
+def _loadRawQss(path: str) -> str:
+    if path.startswith(":/qfluentwidgets/"):
+        cached = _rawQssByPath.get(path)
+        if cached is not None:
+            return cached
+        text = _readFileText(path)
+        _rawQssByPath[path] = text
+        return text
+    return _readFileText(path)
 
-    Parameters
-    ----------
-    source: str | StyleSheetBase
-        qss source, it could be:
-          * `str`: qss file path
-          * `StyleSheetBase`: style sheet instance
 
-    theme: Theme
-        the theme of style sheet
+def _renderAppQss(key: tuple[Theme, int, tuple[str, ...]]) -> str:
+    cached = _appQssCache.get(key)
+    if cached is not None:
+        return cached
+    if len(_appQssCache) >= 4:
+        _appQssCache.clear()
+
+    theme, _, fonts = key
+    raw = "\n".join(_loadRawQss(sheet.path(theme)) for sheet in _APP_SHEET_ORDER)
+    rendered = QssTemplate(raw).safe_substitute(_templateVars(fonts))
+    _appQssCache[key] = rendered
+    return rendered
+
+
+def _mergeManagedBlock(current: str, block: str) -> str:
+    begin = current.find(MANAGED_BEGIN)
+    if begin != -1:
+        end = current.find(MANAGED_END, begin)
+        if end != -1:
+            return current[:begin] + block + current[end + len(MANAGED_END):]
+    if current:
+        return block + "\n" + current
+    return block
+
+
+def _stripManagedBlock(current: str) -> str:
+    begin = current.find(MANAGED_BEGIN)
+    if begin == -1:
+        return current
+    end = current.find(MANAGED_END, begin)
+    if end == -1:
+        return current
+    before = current[:begin].rstrip("\n")
+    after = current[end + len(MANAGED_END):].lstrip("\n")
+    if before and after:
+        return before + "\n" + after
+    return before or after
+
+
+class StyleSheetBinding(QObject):
+    """Widget-owned child binding for widget-level and custom stylesheets.
+
+    Destroyed automatically by Qt with its parent widget and synced natively on
+    QEvent.StyleChange and QEvent.Show.
     """
+
+    def __init__(self, widget: QWidget, compose: StyleSheetCompose) -> None:
+        super().__init__(parent=widget)
+        self.compose = compose
+        self._appliedKey: tuple | None = None
+        widget.installEventFilter(self)
+
+    def applyNow(self, theme: Theme = Theme.AUTO) -> None:
+        widget = self.parent()
+        if widget is None or not isValid(widget):
+            return
+        qss = getStyleSheet(self.compose, theme)
+        self._appliedKey = _renderKey()
+        if qss != widget.styleSheet():
+            widget.setStyleSheet(qss)
+
+    def detach(self) -> None:
+        widget = self.parent()
+        if widget is not None and isValid(widget):
+            widget.removeEventFilter(self)
+        self.setParent(None)
+        self.deleteLater()
+
+    def eventFilter(self, obj: QObject, e: QEvent) -> bool:
+        if obj is not self.parent() or _installedKey is None:
+            return False
+
+        eventType = e.type()
+        if eventType == QEvent.Type.StyleChange:
+            if self._appliedKey == _renderKey() or (_isLazySync and not obj.isVisible()):
+                return False
+            self.applyNow(Theme.AUTO)
+        elif eventType == QEvent.Type.Show:
+            if self._appliedKey != _renderKey():
+                self.applyNow(Theme.AUTO)
+
+        return False
+
+
+def _bindingOf(widget: QWidget) -> StyleSheetBinding | None:
+    if not isValid(widget):
+        return None
+    return widget.findChild(StyleSheetBinding, options=Qt.FindChildOption.FindDirectChildrenOnly)
+
+
+def _registerBinding(source, widget: QWidget, reset: bool = True) -> StyleSheetBinding:
+    if isinstance(source, str):
+        source = StyleSheetFile(source)
+
+    binding = _bindingOf(widget)
+    if isinstance(source, StyleSheetCompose):
+        if binding is None:
+            return StyleSheetBinding(widget, source)
+        if reset:
+            binding.compose = source
+        else:
+            for item in source.sources:
+                binding.compose.add(item)
+        return binding
+
+    if binding is None:
+        sources = [source] if isinstance(source, CustomStyleSheet) else [source, CustomStyleSheet(widget)]
+        return StyleSheetBinding(widget, StyleSheetCompose(sources))
+
+    if reset:
+        sources = [source] if isinstance(source, CustomStyleSheet) else [source, CustomStyleSheet(widget)]
+        binding.compose = StyleSheetCompose(sources)
+    else:
+        binding.compose.add(source)
+    return binding
+
+
+def _applyAppSheet(widget: QWidget, source: FluentStyleSheet, theme: Theme, register: bool) -> bool:
+    if not register or theme != Theme.AUTO or source not in APP_SHEETS:
+        return False
+
+    binding = _bindingOf(widget)
+    if binding is not None:
+        customs = [
+            s for s in binding.compose.sources
+            if isinstance(s, CustomStyleSheet) and (s.lightStyleSheet() or s.darkStyleSheet())
+        ]
+        if customs:
+            binding.compose = StyleSheetCompose(customs)
+            binding.applyNow(Theme.AUTO)
+        else:
+            binding.detach()
+            if widget.styleSheet():
+                widget.setStyleSheet("")
+    return True
+
+
+def installAppBundle(app: QApplication) -> bool:
+    return syncAppBundle(app, force=True)
+
+
+def syncAppBundle(app: QApplication | None = None, force: bool = False) -> bool:
+    global _installedKey
+    if not force and _installedKey is None:
+        return False
+    if app is None:
+        app = QApplication.instance()
+    if app is None or not isValid(app):
+        return False
+
+    key = _renderKey()
+    current = app.styleSheet()
+    if not force and _installedKey == key and MANAGED_BEGIN in current:
+        return False
+
+    rendered = _renderAppQss(key)
+    block = f"{MANAGED_BEGIN}\n{rendered}\n{MANAGED_END}"
+    newQss = _mergeManagedBlock(current, block)
+    _installedKey = key
+    if newQss != current:
+        app.setStyleSheet(newQss)
+        return True
+    return False
+
+
+def resetAppBundle(app: QApplication | None = None) -> None:
+    global _installedKey
+    if app is None:
+        app = QApplication.instance()
+    if app is not None and isValid(app) and _installedKey is not None:
+        stripped = _stripManagedBlock(app.styleSheet())
+        if stripped != app.styleSheet():
+            app.setStyleSheet(stripped)
+    _installedKey = None
+    _rawQssByPath.clear()
+    _appQssCache.clear()
+
+
+def _iterAllBindings(app: QApplication) -> list[StyleSheetBinding]:
+    seen: set[int] = set()
+    bindings: list[StyleSheetBinding] = []
+    for top in app.topLevelWidgets():
+        if not isValid(top):
+            continue
+        direct = _bindingOf(top)
+        if direct is not None and id(direct) not in seen:
+            seen.add(id(direct))
+            bindings.append(direct)
+        for child in top.findChildren(StyleSheetBinding):
+            if isValid(child) and id(child) not in seen:
+                seen.add(id(child))
+                bindings.append(child)
+    return bindings
+
+
+def applyThemeColor(qss: str):
+    """ apply theme color to style sheet """
+    return QssTemplate(qss).safe_substitute(_templateVars())
+
+
+def renderQss(qss: str):
+    """ render font and theme color to style sheet """
+    return QssTemplate(qss).safe_substitute(_templateVars())
+
+
+def getStyleSheetFromFile(file: Union[str, QFile]):
+    """ get style sheet from qss file """
+    if isinstance(file, str):
+        return _loadRawQss(file)
+    return _readFileText(file)
+
+
+def getStyleSheet(source: Union[str, StyleSheetBase], theme=Theme.AUTO):
+    """ get style sheet """
     if isinstance(source, str):
         source = StyleSheetFile(source)
 
@@ -317,131 +468,68 @@ def getStyleSheet(source: Union[str, StyleSheetBase], theme=Theme.AUTO):
 
 
 def setStyleSheet(widget: QWidget, source: Union[str, StyleSheetBase], theme=Theme.AUTO, register=True):
-    """ set the style sheet of widget
+    """ set the style sheet of widget """
+    if isinstance(source, FluentStyleSheet) and _applyAppSheet(widget, source, theme, register):
+        return
 
-    Parameters
-    ----------
-    widget: QWidget
-        the widget to set style sheet
-
-    source: str | StyleSheetBase
-        qss source, it could be:
-          * `str`: qss file path
-          * `StyleSheetBase`: style sheet instance
-
-    theme: Theme
-        the theme of style sheet
-
-    register: bool
-        whether to register the widget to the style manager. If `register=True`, the style of
-        the widget will be updated automatically when the theme changes
-    """
     if register:
-        styleSheetManager.register(source, widget)
-
-    widget.setStyleSheet(getStyleSheet(source, theme))
+        _registerBinding(source, widget, reset=True).applyNow(theme)
+    else:
+        qss = getStyleSheet(source, theme)
+        if qss != widget.styleSheet():
+            widget.setStyleSheet(qss)
 
 
 def setCustomStyleSheet(widget: QWidget, lightQss: str, darkQss: str):
-    """ set custom style sheet
-
-    Parameters
-    ----------
-    widget: QWidget
-        the widget to add style sheet
-
-    lightQss: str
-        style sheet used in light theme mode
-
-    darkQss: str
-        style sheet used in light theme mode
-    """
+    """ set custom style sheet """
     CustomStyleSheet(widget).setCustomStyleSheet(lightQss, darkQss)
 
 
 def addStyleSheet(widget: QWidget, source: Union[str, StyleSheetBase], theme=Theme.AUTO, register=True):
-    """ add style sheet to widget
+    """ add style sheet to widget """
+    if isinstance(source, FluentStyleSheet) and _applyAppSheet(widget, source, theme, register):
+        return
 
-    Parameters
-    ----------
-    widget: QWidget
-        the widget to set style sheet
-
-    source: str | StyleSheetBase
-        qss source, it could be:
-          * `str`: qss file path
-          * `StyleSheetBase`: style sheet instance
-
-    theme: Theme
-        the theme of style sheet
-
-    register: bool
-        whether to register the widget to the style manager. If `register=True`, the style of
-        the widget will be updated automatically when the theme changes
-    """
     if register:
-        styleSheetManager.register(source, widget, reset=False)
-        qss = getStyleSheet(styleSheetManager.source(widget), theme)
+        _registerBinding(source, widget, reset=False).applyNow(theme)
     else:
         qss = widget.styleSheet() + '\n' + getStyleSheet(source, theme)
-
-    if qss.rstrip() != widget.styleSheet().rstrip():
-        widget.setStyleSheet(qss)
+        if qss.rstrip() != widget.styleSheet().rstrip():
+            widget.setStyleSheet(qss)
 
 
 def updateStyleSheet(lazy=False):
-    """ update the style sheet of all fluent widgets
+    """ update the style sheet of all fluent widgets """
+    global _isLazySync
+    if _installedKey is None:
+        return
+    app = QApplication.instance()
+    if app is None or not isValid(app):
+        return
 
-    Parameters
-    ----------
-    lazy: bool
-        whether to update the style sheet lazily, set to `True` will accelerate theme switching
-    """
-    removes = []
-    for widget, file in list(styleSheetManager.items()):
-        try:
-            if not (lazy and widget.visibleRegion().isNull()):
-                setStyleSheet(widget, file, qconfig.theme)
-            else:
-                styleSheetManager.register(file, widget)
-                widget.setProperty('dirty-qss', True)
-        except RuntimeError:
-            removes.append(widget)
-
-    for widget in removes:
-        styleSheetManager.deregister(widget)
+    _isLazySync = lazy
+    try:
+        didAppChange = syncAppBundle(app)
+        if not didAppChange or not lazy:
+            key = _renderKey()
+            for binding in _iterAllBindings(app):
+                if isValid(binding) and (not didAppChange or binding._appliedKey != key):
+                    widget = binding.parent()
+                    if widget is not None and isValid(widget) and (not lazy or widget.isVisible()):
+                        binding.applyNow(Theme.AUTO)
+    finally:
+        _isLazySync = False
 
 
 def setTheme(theme: Theme, save=False, lazy=False):
-    """ set the theme of application
-
-    Parameters
-    ----------
-    theme: Theme
-        theme mode
-
-    save: bool
-        whether to save the change to config file
-
-    lazy: bool
-        whether to update the style sheet lazily, set to `True` will accelerate theme switching
-    """
+    """ set the theme of application """
     qconfig.set(qconfig.themeMode, theme, save)
     updateStyleSheet(lazy)
     qconfig.themeChangedFinished.emit()
 
 
 def toggleTheme(save=False, lazy=False):
-    """ toggle the theme of application
-
-    Parameters
-    ----------
-    save: bool
-        whether to save the change to config file
-
-    lazy: bool
-        whether to update the style sheet lazily, set to `True` will accelerate theme switching
-    """
+    """ toggle the theme of application """
     theme = Theme.LIGHT if isDarkTheme() else Theme.DARK
     setTheme(theme, save, lazy)
 
@@ -510,27 +598,18 @@ def themeColor():
 
 
 def setThemeColor(color, save=False, lazy=False):
-    """ set theme color
-
-    Parameters
-    ----------
-    color: QColor | Qt.GlobalColor | str
-        theme color
-
-    save: bool
-        whether to save to change to config file
-
-    lazy: bool
-        whether to update the style sheet lazily
-    """
+    """ set theme color """
     color = QColor(color)
     qconfig.set(qconfig.themeColor, color, save=save)
     updateStyleSheet(lazy)
 
 
 def updateDynamicStyle(widget: QWidget):
-    """ update the dynamic style of widget """
-    if sys.platform != "win32" or QT_VERSION < (6, 8, 0):
-        widget.setStyle(QApplication.style())
-    else:
-        widget.setStyle(QStyleFactory.create("windowsvista"))
+    """Re-evaluate dynamic QSS properties without detaching QStyle."""
+    if widget is None or not isValid(widget):
+        return
+    style = widget.style()
+    if style is not None:
+        style.unpolish(widget)
+        style.polish(widget)
+    widget.update()

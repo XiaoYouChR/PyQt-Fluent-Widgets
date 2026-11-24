@@ -10,7 +10,7 @@ from PySide6.QtWidgets import QLabel, QWidget, QPushButton, QApplication
 from ...common.exception_handler import exceptionHandler
 from ...common.overload import singledispatchmethod
 from ...common.font import setFont, getFont
-from ...common.style_sheet import FluentStyleSheet, setCustomStyleSheet, setCustomStyleSheet
+from ...common.style_sheet import FluentStyleSheet, setCustomStyleSheet, setCustomStyleSheet, updateDynamicStyle
 from ...common.config import qconfig, isDarkTheme
 from .menu import LabelContextMenu
 
@@ -63,8 +63,8 @@ class FluentLabelBase(QLabel):
     def _init(self):
         FluentStyleSheet.LABEL.apply(self)
         self.setFont(self.getFont())
-        self.setTextColor()
-        qconfig.themeChanged.connect(self._applyThemeColor)
+        self._lightColor = QColor(0, 0, 0)
+        self._darkColor = QColor(255, 255, 255)
 
         self.customContextMenuRequested.connect(self._onContextMenuRequested)
         return self
@@ -547,8 +547,7 @@ class HyperlinkLabel(QPushButton):
     def setUnderlineVisible(self, isVisible: bool):
         self._isUnderlineVisible = isVisible
         self.setProperty('underline', isVisible)
-        self.setStyle(QApplication.style())
-
+        updateDynamicStyle(self)
     def _onClicked(self):
         if self.getUrl().isValid():
             QDesktopServices.openUrl(self.getUrl())

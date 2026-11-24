@@ -100,7 +100,7 @@ class PopUpAniStackedWidget(QStackedWidget):
             widget=widget,
             deltaX=deltaX,
             deltaY=deltaY,
-            ani=QPropertyAnimation(widget, b'pos'),
+            ani=QPropertyAnimation(widget, b'pos', widget),
         ))
 
     def removeWidget(self, widget: QWidget):
@@ -108,7 +108,11 @@ class PopUpAniStackedWidget(QStackedWidget):
         if index == -1:
             return
 
-        self.aniInfos.pop(index)
+        info = self.aniInfos.pop(index)
+        info.ani.stop()
+        if self._ani is info.ani:
+            self._ani = None
+        info.ani.deleteLater()
         super().removeWidget(widget)
 
     def setAnimationEnabled(self, isEnabled: bool):
@@ -168,14 +172,24 @@ class PopUpAniStackedWidget(QStackedWidget):
             nextWidget.setVisible(showNextWidgetDirectly)
         else:
             deltaX, deltaY = nextAniInfo.deltaX, nextAniInfo.deltaY
-            pos = nextWidget.pos() + QPoint(deltaX, deltaY)
-            self.__setAnimation(ani, pos, QPoint(nextWidget.x(), 0), duration, easingCurve)
+            nextWidget.resize(self.size())
+            startPos = QPoint(nextWidget.x(), 0) + QPoint(deltaX, deltaY)
+            nextWidget.move(startPos)
+            self.__setAnimation(ani, startPos, QPoint(nextWidget.x(), 0), duration, easingCurve)
+            if self.layout() is not None:
+                self.layout().setEnabled(False)
             super().setCurrentIndex(index)
 
         # start animation
         ani.finished.connect(self.__onAniFinished)
         ani.start()
         self.aniStart.emit()
+
+    def resizeEvent(self, e):
+        super().resizeEvent(e)
+        current = self.currentWidget()
+        if current is not None and current.size() != e.size():
+            current.resize(e.size())
 
     def setCurrentWidget(self, widget, needPopOut: bool = False, showNextWidgetDirectly: bool = True,
                          duration: int = 250, easingCurve=QEasingCurve.OutQuad):
@@ -210,7 +224,13 @@ class PopUpAniStackedWidget(QStackedWidget):
 
     def __onAniFinished(self):
         """ animation finished slot """
-        self._ani.finished.disconnect()
+        if self._ani is not None:
+            try:
+                self._ani.finished.disconnect(self.__onAniFinished)
+            except (RuntimeError, TypeError):
+                pass
+        if self.layout() is not None and not self.layout().isEnabled():
+            self.layout().setEnabled(True)
         super().setCurrentIndex(self._nextIndex)
         self.aniFinished.emit()
 

@@ -1,8 +1,10 @@
 # coding:utf-8
 from typing import List
+import weakref
 
 from PySide6.QtCore import QSize, QPoint, Qt, QRect, QPropertyAnimation, QParallelAnimationGroup, QEasingCurve, QEvent, QTimer, QObject
 from PySide6.QtWidgets import QLayout, QWidgetItem, QLayoutItem
+from shiboken6 import isValid
 
 
 class FlowLayout(QLayout):
@@ -33,9 +35,12 @@ class FlowLayout(QLayout):
         self.isTight = isTight
         self._deBounceTimer = QTimer(self)
         self._deBounceTimer.setSingleShot(True)
-        self._deBounceTimer.timeout.connect(lambda: self._doLayout(self.geometry(), True))
-        self._wParent = None
+        self._deBounceTimer.timeout.connect(self._onDebounceTimeout)
+        self._wParentRef = None
         self._isInstalledEventFilter = False
+
+    def _onDebounceTimeout(self):
+        self._doLayout(self.geometry(), True)
 
     def addItem(self, item):
         self._items.append(item)
@@ -55,15 +60,16 @@ class FlowLayout(QLayout):
     def _onWidgetAdded(self, w, index=-1):
         if not self._isInstalledEventFilter:
             if w.parent():
-                self._wParent = w.parent()
+                self._wParentRef = weakref.ref(w.parent())
                 w.parent().installEventFilter(self)
+                self._isInstalledEventFilter = True
             else:
                 w.installEventFilter(self)
 
         if not self.needAni:
             return
 
-        ani = QPropertyAnimation(w, b'geometry')
+        ani = QPropertyAnimation(w, b'geometry', self)
         ani.setEndValue(QRect(QPoint(0, 0), w.size()))
         ani.setDuration(self.duration)
         ani.setEasingCurve(self.ease)
@@ -185,11 +191,14 @@ class FlowLayout(QLayout):
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
         if obj in [w.widget() for w in self._items] and event.type() == QEvent.Type.ParentChange:
-            self._wParent = obj.parent()
-            obj.parent().installEventFilter(self)
-            self._isInstalledEventFilter = True
+            parent = obj.parent()
+            if parent is not None:
+                self._wParentRef = weakref.ref(parent)
+                parent.installEventFilter(self)
+                self._isInstalledEventFilter = True
 
-        if obj == self._wParent and event.type() == QEvent.Type.Show:
+        wParent = self._wParentRef() if self._wParentRef is not None else None
+        if wParent is not None and isValid(wParent) and obj is wParent and event.type() == QEvent.Type.Show:
             self._doLayout(self.geometry(), True)
             self._isInstalledEventFilter = True
 

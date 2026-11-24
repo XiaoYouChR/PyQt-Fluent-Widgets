@@ -7,7 +7,7 @@ from .acrylic_menu import AcrylicMenuBase, AcrylicMenuActionListWidget
 from .acrylic_line_edit import AcrylicLineEditBase
 from ..widgets.combo_box import ComboBoxMenu, ComboBox, EditableComboBox
 from ..widgets.menu import MenuAnimationType, RoundMenu, IndicatorMenuItemDelegate
-from ..settings import SettingCard
+from ..settings.setting_card import SettingCard
 from ...common.config import OptionsConfigItem, qconfig
 
 
@@ -24,7 +24,7 @@ class AcrylicComboBoxMenu(AcrylicMenuBase, RoundMenu):
         self.setUpMenu(AcrylicComboMenuActionListWidget(self))
 
         self.view.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.view.setItemDelegate(IndicatorMenuItemDelegate())
+        self.view.setItemDelegate(IndicatorMenuItemDelegate(self.view))
         self.view.setObjectName('comboListWidget')
         self.setItemHeight(33)
 

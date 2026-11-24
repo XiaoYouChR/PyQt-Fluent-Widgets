@@ -6,7 +6,7 @@ from PySide6.QtGui import QPainter, QPainterPath, QColor
 from PySide6.QtWidgets import (QSpinBox, QDoubleSpinBox, QToolButton, QHBoxLayout,
                                QDateEdit, QDateTimeEdit, QTimeEdit, QVBoxLayout, QApplication)
 
-from ...common.style_sheet import FluentStyleSheet, themeColor, isDarkTheme
+from ...common.style_sheet import FluentStyleSheet, themeColor, isDarkTheme, updateDynamicStyle
 from ...common.icon import FluentIconBase, Theme, getIconColor
 from ...common.font import setFont
 from ...common.color import FluentSystemColor, autoFallbackThemeColor
@@ -148,8 +148,7 @@ class SpinBoxBase:
     def setSymbolVisible(self, isVisible: bool):
         """ set whether the spin symbol is visible """
         self.setProperty("symbolVisible", isVisible)
-        self.setStyle(QApplication.style())
-
+        updateDynamicStyle(self)
     def setCustomFocusedBorderColor(self, light, dark):
         """ set the border color in focused status
 

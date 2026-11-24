@@ -1,8 +1,12 @@
-from .setting_card import (SettingCard, SwitchSettingCard, RangeSettingCard,
-                           PushSettingCard, ColorSettingCard, HyperlinkCard,
-                           PrimaryPushSettingCard, ColorPickerButton, ComboBoxSettingCard)
-from .expand_setting_card import ExpandSettingCard, ExpandGroupSettingCard, SimpleExpandGroupSettingCard
-from .folder_list_setting_card import FolderListSettingCard
-from .options_setting_card import OptionsSettingCard
-from .custom_color_setting_card import CustomColorSettingCard
-from .setting_card_group import SettingCardGroup
+# coding:utf-8
+from qfluentwidgets._symbols import listDir, listExports, loadExport
+
+__all__ = listExports(__name__)
+
+
+def __getattr__(name: str):
+    return loadExport(__name__, globals(), name)
+
+
+def __dir__() -> list[str]:
+    return listDir(__name__)

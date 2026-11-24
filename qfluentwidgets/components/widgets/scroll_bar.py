@@ -1,5 +1,7 @@
 # coding:utf-8
 from enum import Enum
+import weakref
+
 from PySide6.QtCore import (QEvent, QEasingCurve, Qt, Signal, QPropertyAnimation, Property, QRectF,
                           QTimer, QPoint, QObject)
 from PySide6.QtGui import QPainter, QColor, QMouseEvent
@@ -396,11 +398,11 @@ class ScrollBar(QWidget):
 
     def enterEvent(self, e):
         self._isEnter = True
-        QTimer.singleShot(200, self.expand)
+        QTimer.singleShot(200, self, self.expand)
 
     def leaveEvent(self, e):
         self._isEnter = False
-        QTimer.singleShot(200, self.collapse)
+        QTimer.singleShot(200, self, self.collapse)
 
     def eventFilter(self, obj, e: QEvent):
         if obj is not self.parent():
@@ -527,9 +529,7 @@ class SmoothScrollBar(ScrollBar):
     def __init__(self, orient: Qt.Orientation, parent):
         super().__init__(orient, parent)
         self.duration = 500
-        self.ani = QPropertyAnimation()
-        self.ani.setTargetObject(self)
-        self.ani.setPropertyName(b"val")
+        self.ani = QPropertyAnimation(self, b"val", self)
         self.ani.setEasingCurve(QEasingCurve.OutCubic)
         self.ani.setDuration(self.duration)
 
@@ -628,8 +628,13 @@ class SmoothScrollDelegate(QObject):
             parent.horizontalScrollBar().setStyleSheet("QScrollBar:horizontal{height: 0px}")
 
         parent.viewport().installEventFilter(self)
-        parent.setVerticalScrollBarPolicy = self.setVerticalScrollBarPolicy
-        parent.setHorizontalScrollBarPolicy = self.setHorizontalScrollBarPolicy
+        delegateRef = weakref.ref(self)
+        parent.setVerticalScrollBarPolicy = lambda policy: (
+            d.setVerticalScrollBarPolicy(policy) if (d := delegateRef()) is not None else None
+        )
+        parent.setHorizontalScrollBarPolicy = lambda policy: (
+            d.setHorizontalScrollBarPolicy(policy) if (d := delegateRef()) is not None else None
+        )
 
     def eventFilter(self, obj, e: QEvent):
         if e.type() == QEvent.Type.Wheel:

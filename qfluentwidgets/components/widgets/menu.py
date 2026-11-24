@@ -1233,12 +1233,12 @@ class MenuIndicatorType(Enum):
     RADIO = 1
 
 
-def createCheckableMenuItemDelegate(style: MenuIndicatorType):
+def createCheckableMenuItemDelegate(style: MenuIndicatorType, parent=None):
     """ create checkable menu item delegate """
     if style == MenuIndicatorType.RADIO:
-        return RadioIndicatorMenuItemDelegate()
+        return RadioIndicatorMenuItemDelegate(parent)
     if style == MenuIndicatorType.CHECK:
-        return CheckIndicatorMenuItemDelegate()
+        return CheckIndicatorMenuItemDelegate(parent)
 
     raise ValueError(f'`{style}` is not a valid menu indicator type.')
 
@@ -1248,7 +1248,7 @@ class CheckableMenu(RoundMenu):
 
     def __init__(self, title="", parent=None, indicatorType=MenuIndicatorType.CHECK):
         super().__init__(title, parent)
-        self.view.setItemDelegate(createCheckableMenuItemDelegate(indicatorType))
+        self.view.setItemDelegate(createCheckableMenuItemDelegate(indicatorType, self.view))
         self.view.setObjectName('checkableListWidget')
 
     def _adjustItemText(self, item: QListWidgetItem, action: QAction):

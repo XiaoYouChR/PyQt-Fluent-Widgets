@@ -4,8 +4,10 @@ from PySide6.QtGui import (QBrush, QColor, QPixmap, QPainter,
                            QPen, QIntValidator, QRegularExpressionValidator, QIcon)
 from PySide6.QtWidgets import QApplication, QLabel, QWidget, QPushButton, QPushButton, QFrame, QVBoxLayout
 
-from ...common.style_sheet import FluentStyleSheet, isDarkTheme
-from ..widgets import ClickableSlider, SingleDirectionScrollArea, PushButton, PrimaryPushButton
+from ...common.style_sheet import FluentStyleSheet, isDarkTheme, updateDynamicStyle
+from ..widgets.button import PushButton, PrimaryPushButton
+from ..widgets.scroll_area import SingleDirectionScrollArea
+from ..widgets.slider import ClickableSlider
 from ..widgets.line_edit import LineEdit
 from .mask_dialog_base import MaskDialogBase
 
@@ -387,7 +389,7 @@ class ColorDialog(MaskDialogBase):
 
     def updateStyle(self):
         """ update style sheet """
-        self.setStyle(QApplication.style())
+        updateDynamicStyle(self)
         self.titleLabel.adjustSize()
         self.editLabel.adjustSize()
         self.redLabel.adjustSize()

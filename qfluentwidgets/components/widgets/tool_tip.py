@@ -1,13 +1,14 @@
 # coding:utf-8
 from enum import Enum
 
-from PySide6.QtCore import QEvent, QObject, QPoint, QTimer, Qt, QPropertyAnimation, QModelIndex, QRect
+from PySide6.QtCore import QBasicTimer, QEvent, QObject, QPoint, QTimer, Qt, QPropertyAnimation, QModelIndex, QRect
 from PySide6.QtGui import QColor, QHelpEvent
 from PySide6.QtWidgets import (QApplication, QFrame, QGraphicsDropShadowEffect,
                              QHBoxLayout, QLabel, QWidget, QAbstractItemView, QStyleOptionViewItem,
                              QTableView)
+from shiboken6 import isValid
 
-from ...common import FluentStyleSheet
+from ...common.style_sheet import FluentStyleSheet
 from ...common.screen import getCurrentScreenGeometry
 
 
@@ -315,41 +316,48 @@ class ToolTipFilter(QObject):
         self._tooltip = None
         self._tooltipDelay = showDelay
         self.position = position
-        self.timer = QTimer(self)
-        self.timer.setSingleShot(True)
-        self.timer.timeout.connect(self.showToolTip)
+        self._timer = QBasicTimer()
+
+    def timerEvent(self, e):
+        if e.timerId() == self._timer.timerId():
+            self._timer.stop()
+            self.showToolTip()
+            return
+        super().timerEvent(e)
 
     def eventFilter(self, obj: QObject, e: QEvent) -> bool:
         if e.type() == QEvent.ToolTip:
             return True
-        elif e.type() in [QEvent.Hide, QEvent.Leave]:
+        if e.type() in (QEvent.Hide, QEvent.Leave, QEvent.MouseButtonPress):
             self.hideToolTip()
         elif e.type() == QEvent.Enter:
             self.isEnter = True
-            parent = self.parent()  # type: QWidget
             if self._canShowToolTip():
-                if self._tooltip is None:
-                    self._tooltip = self._createToolTip()
-
-                t = parent.toolTipDuration() if parent.toolTipDuration() > 0 else -1
-                self._tooltip.setDuration(t)
-
-                # show the tool tip after delay
-                self.timer.start(self._tooltipDelay)
-        elif e.type() == QEvent.MouseButtonPress:
-            self.hideToolTip()
+                self._timer.start(self._tooltipDelay, self)
 
         return super().eventFilter(obj, e)
 
     def _createToolTip(self):
         return ToolTip(self.parent().toolTip(), self.parent().window())
 
+    def _placeToolTip(self, tooltip: ToolTip):
+        parent = self.parent()  # type: QWidget
+        duration = parent.toolTipDuration() if parent.toolTipDuration() > 0 else -1
+        tooltip.setDuration(duration)
+        tooltip.setText(parent.toolTip())
+        tooltip.adjustPos(parent, self.position)
+
+    def _closeToolTip(self):
+        if self._tooltip is not None and isValid(self._tooltip):
+            self._tooltip.hide()
+            self._tooltip.deleteLater()
+        self._tooltip = None
+
     def hideToolTip(self):
         """ hide tool tip """
         self.isEnter = False
-        self.timer.stop()
-        if self._tooltip:
-            self._tooltip.hide()
+        self._timer.stop()
+        self._closeToolTip()
 
     def showToolTip(self):
         """ show tool tip """
@@ -357,9 +365,15 @@ class ToolTipFilter(QObject):
             return
 
         parent = self.parent()  # type: QWidget
-        self._tooltip.setText(parent.toolTip())
-        self._tooltip.adjustPos(parent, self.position)
-        self._tooltip.show()
+        if parent is None or not isValid(parent):
+            return
+
+        self._closeToolTip()
+        tooltip = self._createToolTip()
+        self.destroyed.connect(tooltip.deleteLater)
+        self._tooltip = tooltip
+        self._placeToolTip(tooltip)
+        tooltip.show()
 
     def setToolTipDelay(self, delay: int):
         """ set the delay of tool tip """
@@ -410,33 +424,24 @@ class ItemViewToolTipDelegate(ToolTipFilter):
     def _createToolTip(self):
         return ItemViewToolTip(self.text, self.parent().window())
 
-    def showToolTip(self):
-        """ show tool tip """
-        if not self._tooltip:
-            self._tooltip = self._createToolTip()
-
+    def _placeToolTip(self, tooltip: ItemViewToolTip):
         view = self.parent()  # type: QAbstractItemView
-        self._tooltip.setText(self.text)
-
-        if self.currentIndex:
-            rect = view.visualRect(self.currentIndex)
-        else:
-            rect = QRect()
-
-        self._tooltip.adjustPos(view, rect, self.tooltipType)
-        self._tooltip.show()
+        rect = view.visualRect(self.currentIndex) if self.currentIndex else QRect()
+        tooltip.setDuration(self.tooltipDuration)
+        tooltip.setText(self.text)
+        tooltip.adjustPos(view, rect, self.tooltipType)
 
     def _canShowToolTip(self) -> bool:
         return True
 
     def setText(self, text: str):
         self.text = text
-        if self._tooltip:
+        if self._tooltip is not None and isValid(self._tooltip):
             self._tooltip.setText(text)
 
     def setToolTipDuration(self, duration):
         self.tooltipDuration = duration
-        if self._tooltip:
+        if self._tooltip is not None and isValid(self._tooltip):
             self._tooltip.setDuration(duration)
 
     def helpEvent(self, event: QHelpEvent, view: QAbstractItemView, option: QStyleOptionViewItem, index: QModelIndex) -> bool:
@@ -449,14 +454,9 @@ class ItemViewToolTipDelegate(ToolTipFilter):
                 self.hideToolTip()
                 return False
 
+            self.isEnter = True
             self.text = text
             self.currentIndex = index
-
-            if not self._tooltip:
-                self._tooltip = self._createToolTip()
-                self._tooltip.setDuration(self.tooltipDuration)
-
-            # show the tool tip after delay
-            self.timer.start(self._tooltipDelay)
+            self._timer.start(self._tooltipDelay, self)
 
         return True

@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QApplication, QWidget
 from ...common.font import setFont
 from ...common.icon import FluentIconBase, drawIcon, Theme
 from ...common.color import autoFallbackThemeColor
-from ...common.style_sheet import themeColor, FluentStyleSheet, isDarkTheme
+from ...common.style_sheet import themeColor, FluentStyleSheet, isDarkTheme, updateDynamicStyle
 from ...common.animation import FluentAnimation, FluentAnimationType, FluentAnimationProperty, ScaleSlideAnimation
 from ..widgets.button import PushButton, ToolButton, TransparentToolButton
 from .pivot import Pivot, PivotItem
@@ -40,7 +40,7 @@ class SegmentedToolItem(ToolButton):
 
         self.isSelected = isSelected
         self.setProperty('isSelected', isSelected)
-        self.setStyle(QApplication.style())
+        updateDynamicStyle(self)
         self.update()
 
 

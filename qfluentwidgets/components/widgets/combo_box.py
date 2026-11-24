@@ -12,7 +12,7 @@ from ...common.animation import TranslateYAnimation
 from ...common.icon import FluentIconBase, isDarkTheme
 from ...common.icon import FluentIcon as FIF
 from ...common.font import setFont
-from ...common.style_sheet import FluentStyleSheet
+from ...common.style_sheet import FluentStyleSheet, updateDynamicStyle
 
 
 class ComboItem:
@@ -414,8 +414,7 @@ class ComboBox(QPushButton, ComboBoxBase):
             return
 
         self.setProperty("isPlaceholderText", isPlaceholder)
-        self.setStyle(QApplication.style())
-
+        updateDynamicStyle(self)
     def mouseReleaseEvent(self, e):
         super().mouseReleaseEvent(e)
         self._toggleComboMenu()
@@ -545,7 +544,7 @@ class ComboBoxMenu(RoundMenu):
 
         self.view.setViewportMargins(0, 2, 0, 6)
         self.view.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.view.setItemDelegate(IndicatorMenuItemDelegate())
+        self.view.setItemDelegate(IndicatorMenuItemDelegate(self.view))
         self.view.setObjectName('comboListWidget')
 
         self.setItemHeight(33)

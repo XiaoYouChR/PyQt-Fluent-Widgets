@@ -9,7 +9,7 @@ from ...common.animation import TranslateYAnimation
 from ...common.icon import FluentIconBase, drawIcon, isDarkTheme, Theme, toQIcon, Icon
 from ...common.icon import FluentIcon as FIF
 from ...common.font import setFont, getFont
-from ...common.style_sheet import FluentStyleSheet, themeColor, ThemeColor
+from ...common.style_sheet import FluentStyleSheet, themeColor, ThemeColor, updateDynamicStyle
 from ...common.color import autoFallbackThemeColor
 from ...common.overload import singledispatchmethod
 from .menu import RoundMenu, MenuAnimationType
@@ -59,7 +59,7 @@ class PushButton(QPushButton):
         else:
             self.setProperty('hasIcon', True)
 
-        self.setStyle(QApplication.style())
+        updateDynamicStyle(self)
         self._icon = icon or QIcon()
         self.update()
 

@@ -10,7 +10,7 @@ from ..widgets.cycle_list_widget import CycleListWidget
 from ..widgets.button import TransparentToolButton
 from ...common.icon import FluentIcon
 from ...common.screen import getCurrentScreenGeometry
-from ...common.style_sheet import FluentStyleSheet, themeColor, isDarkTheme
+from ...common.style_sheet import FluentStyleSheet, themeColor, isDarkTheme, updateDynamicStyle
 from ...common.color import autoFallbackThemeColor
 
 
@@ -144,8 +144,7 @@ class PickerColumnButton(QPushButton):
             self.setProperty('align', 'center')
 
         self._align = align
-        self.setStyle(QApplication.style())
-
+        updateDynamicStyle(self)
     def value(self) -> str:
         if self._value is None:
             return None
@@ -161,8 +160,7 @@ class PickerColumnButton(QPushButton):
             self.setText(self.value())
             self.setProperty('hasValue', True)
 
-        self.setStyle(QApplication.style())
-
+        updateDynamicStyle(self)
     def items(self):
         return [self._formatter.encode(i) for i in self._items]
 
@@ -254,8 +252,7 @@ class PickerBase(QPushButton):
         # update the style of buttons
         for btn in self.columns[:-1]:
             btn.setProperty('hasBorder', True)
-            btn.setStyle(QApplication.style())
-
+            updateDynamicStyle(btn)
     @checkColumnIndex
     def setColumnAlignment(self, index: int, align=Qt.AlignCenter):
         """ set the text alignment of specified column """
@@ -364,8 +361,7 @@ class PickerBase(QPushButton):
         """ send event to picker buttons """
         for button in self.columns:
             button.setProperty(name, value)
-            button.setStyle(QApplication.style())
-
+            updateDynamicStyle(button)
     def panelInitialValue(self):
         """ initial value of panel """
         return self.value()

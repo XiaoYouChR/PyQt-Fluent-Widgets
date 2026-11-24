@@ -15,7 +15,7 @@ from ..widgets.scroll_bar import ScrollBarHandleDisplayMode
 from ..widgets.flyout import Flyout, FlyoutAnimationType, FlyoutViewBase, SlideRightFlyoutAnimationManager
 from ..material.acrylic_flyout import AcrylicFlyout, AcrylicFlyoutViewBase
 from ...common.router import qrouter
-from ...common.style_sheet import FluentStyleSheet, isDarkTheme
+from ...common.style_sheet import FluentStyleSheet, isDarkTheme, updateDynamicStyle
 from ...common.icon import FluentIconBase
 from ...common.icon import FluentIcon as FIF
 
@@ -492,7 +492,7 @@ class NavigationPanel(QFrame):
 
         self._isAcrylicEnabled = isEnabled
         self.setProperty("transparent", self._canDrawAcrylic())
-        self.setStyle(QApplication.style())
+        updateDynamicStyle(self)
         self.update()
 
     def isAcrylicEnabled(self):
@@ -514,7 +514,7 @@ class NavigationPanel(QFrame):
             self.displayMode = NavigationDisplayMode.EXPAND
         else:
             self.setProperty('menu', True)
-            self.setStyle(QApplication.style())
+            updateDynamicStyle(self)
             self.displayMode = NavigationDisplayMode.MENU
 
             # grab acrylic image
@@ -741,11 +741,10 @@ class NavigationPanel(QFrame):
         if self.displayMode == NavigationDisplayMode.MINIMAL:
             self.hide()
             self.setProperty('menu', False)
-            self.setStyle(QApplication.style())
+            updateDynamicStyle(self)
         elif self.displayMode == NavigationDisplayMode.COMPACT:
             self.setProperty('menu', False)
-            self.setStyle(QApplication.style())
-
+            updateDynamicStyle(self)
             self._setWidgetCompacted(True)
 
             if self.isUpdateIndicatorPosOnCollapseFinished():

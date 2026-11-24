@@ -34,7 +34,7 @@ class ScrollArea(QScrollArea):
         self.setStyleSheet("QScrollArea{border: none; background: transparent}")
 
         if self.widget():
-            self.widget().setStyleSheet("QWidget{background: transparent}")
+            self.widget().setStyleSheet(".QWidget{background: transparent}")
 
 
 class SingleDirectionScrollArea(QScrollArea):
@@ -91,7 +91,7 @@ class SingleDirectionScrollArea(QScrollArea):
         self.setStyleSheet("QScrollArea{border: none; background: transparent}")
 
         if self.widget():
-            self.widget().setStyleSheet("QWidget{background: transparent}")
+            self.widget().setStyleSheet(".QWidget{background: transparent}")
 
 
 class SmoothScrollArea(QScrollArea):
@@ -122,4 +122,4 @@ class SmoothScrollArea(QScrollArea):
         self.setStyleSheet("QScrollArea{border: none; background: transparent}")
 
         if self.widget():
-            self.widget().setStyleSheet("QWidget{background: transparent}")
+            self.widget().setStyleSheet(".QWidget{background: transparent}")
