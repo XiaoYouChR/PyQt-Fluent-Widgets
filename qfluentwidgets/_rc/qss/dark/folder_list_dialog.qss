@@ -1,4 +1,4 @@
-QWidget {
+.QWidget {
     background-color: rgb(23, 23, 23);
     border: 1px solid rgb(53, 53, 53);
 }
@@ -8,7 +8,7 @@ QWidget#windowMask {
     border: none;
 }
 
-QLabel {
+.QLabel {
     border: none;
     color: white;
     background-color: transparent;

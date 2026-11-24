@@ -5,7 +5,7 @@ ToastToolTip {
     border-radius: 7px;
 }
 
-QLabel {
+.QLabel {
     color: white;
     background-color: transparent;
     font-family: --FontFamilies;

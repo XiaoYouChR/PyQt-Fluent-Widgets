@@ -1,4 +1,4 @@
-QWidget {
+.QWidget {
     background-color: rgb(23, 23, 23);
     border: 1px solid rgb(55, 55, 55);
 }
@@ -8,7 +8,7 @@ QWidget#windowMask {
     border: none;
 }
 
-QLabel {
+.QLabel {
     background-color: transparent;
     color: white;
     font-family: --FontFamilies;
@@ -23,22 +23,22 @@ QLabel#contentLabel {
     font-size: 14px;
 }
 
-QPushButton {
+.QPushButton {
     background-color: rgb(51, 51, 51);
     font: 15px --FontFamilies;
     border: transparent;
     color: white;
 }
 
-QPushButton:pressed:hover {
+.QPushButton:pressed:hover {
     background-color: rgb(102, 102, 102);
 }
 
-QPushButton:hover {
+.QPushButton:hover {
     background-color: rgb(35, 35, 35);
 }
 
-QPushButton:disabled {
+.QPushButton:disabled {
     background-color: rgb(51, 51, 51);
     color: rgb(133, 133, 133);
 }

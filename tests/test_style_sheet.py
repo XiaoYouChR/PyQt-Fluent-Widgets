@@ -46,6 +46,40 @@ def test_probe_app_qss_has_no_generic_selectors():
     assert build_fork.probeUnsafeAppSelectors() == []
 
 
+def test_probe_widget_qss_has_no_broad_base_selectors():
+    assert build_fork.probeUnsafeWidgetSelectors() == []
+
+
+def test_combo_box_and_primary_button_in_setting_card_keep_app_style(qtbot, fluentApp):
+    setTheme(Theme.DARK)
+    setThemeColor("#0078d4", save=False)
+
+    standalone = ComboBox()
+    standalone.addItem("Option A")
+    qtbot.addWidget(standalone)
+
+    card = SettingCard(FluentIcon.SETTING, "Choice", "Desc")
+    nested = ComboBox(card)
+    nested.addItem("Option A")
+    primary = PrimaryPushButton("Apply", card)
+    primary.setFixedSize(120, 32)
+    card.hBoxLayout.addWidget(nested)
+    card.hBoxLayout.addWidget(primary)
+    qtbot.addWidget(card)
+
+    standalone.show()
+    card.show()
+    qtbot.waitExposed(card)
+
+    assert nested.sizeHint().width() == standalone.sizeHint().width()
+
+    image = QImage(primary.size(), QImage.Format_ARGB32)
+    image.fill(QColor(0, 0, 0))
+    primary.render(image)
+    pixel = image.pixelColor(10, 10)
+    assert pixel.blue() > 140
+
+
 def test_update_before_load_leaves_app_empty(fluentApp):
     qfluentwidgets.unload()
     assert fluentApp.styleSheet() == ""

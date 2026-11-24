@@ -65,6 +65,11 @@ FORBIDDEN_GLOBAL_ROOTS = frozenset({
     "#cancelButton",
 })
 
+FORBIDDEN_WIDGET_ROOTS = frozenset({
+    "QLabel",
+    "QPushButton",
+})
+
 EXCLUDED_STAR_NAMES = frozenset({"ALERT", "darkdetect"})
 
 
@@ -251,6 +256,27 @@ def probeUnsafeAppSelectors(qssNames: list[str] | None = None) -> list[str]:
     return errors
 
 
+def probeUnsafeWidgetSelectors(appQssNames: list[str] | None = None) -> list[str]:
+    appSet = set(parseAppQssNames() if appQssNames is None else appQssNames)
+    selectorBlockRe = re.compile(r"^([^{}]+)\{", re.M)
+    errors: list[str] = []
+    for theme in ("light", "dark"):
+        qssDir = PKG_ROOT / "_rc" / "qss" / theme
+        for path in sorted(qssDir.glob("*.qss")):
+            if path.stem in appSet:
+                continue
+            stripped = re.sub(r"/\*.*?\*/", "", path.read_text(encoding="utf-8"), flags=re.S)
+            for block in selectorBlockRe.findall(stripped):
+                for sel in block.split(","):
+                    sel = sel.strip()
+                    if not sel:
+                        continue
+                    root = re.split(r"[\s:>+\[\.]", sel)[0]
+                    if root in FORBIDDEN_WIDGET_ROOTS:
+                        errors.append(f"{theme}/{path.name}: {sel!r} (use .{root})")
+    return errors
+
+
 def probeLazyImports(table: dict[str, dict[str, str]]) -> list[str]:
     errors: list[str] = []
     for path in sorted(PKG_ROOT.rglob("*.py")):
@@ -299,6 +325,9 @@ def main() -> int:
     selectorErrors = probeUnsafeAppSelectors(appQssNames)
     if selectorErrors:
         raise AssertionError("Unsafe selectors in app QSS:\n" + "\n".join(selectorErrors))
+    widgetSelectorErrors = probeUnsafeWidgetSelectors(appQssNames)
+    if widgetSelectorErrors:
+        raise AssertionError("Broad base-class selectors in widget QSS:\n" + "\n".join(widgetSelectorErrors))
     lazyErrors = probeLazyImports(table)
     if lazyErrors:
         raise AssertionError("Internal imports through lazy __init__.py:\n" + "\n".join(lazyErrors))

@@ -1,4 +1,4 @@
-ColorDialog, QScrollArea, QWidget {
+ColorDialog, QScrollArea, .QWidget {
     background-color: transparent;
 }
 
@@ -24,7 +24,7 @@ QScrollArea {
     border-bottom-right-radius: 8px;
 }
 
-QLabel {
+.QLabel {
     font: 14px --FontFamilies;
     color: black;
     background-color: transparent;

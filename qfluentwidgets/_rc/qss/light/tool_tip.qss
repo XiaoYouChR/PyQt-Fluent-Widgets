@@ -13,7 +13,7 @@ ToolTip>#container[transparent=true] {
 }
 
 
-QLabel {
+.QLabel {
     background-color: transparent;
     font: 12px --FontFamilies;
     border: none;

@@ -22,7 +22,7 @@ MessageBox #buttonGroup {
     background-color: white;
 }
 
-QLabel {
+.QLabel {
     color: black;
     background-color: transparent;
     border: none;

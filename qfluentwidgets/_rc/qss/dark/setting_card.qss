@@ -1,4 +1,4 @@
-QLabel {
+.QLabel {
     font: 14px --FontFamilies;
     color: white;
     padding: 0;
@@ -16,14 +16,14 @@ RangeSettingCard > QLabel#valueLabel{
     color: rgb(159, 159, 159);
 }
 
-QLabel:disabled,
+.QLabel:disabled,
 QLabel#contentLabel:disabled,
 RangeSettingCard>QLabel#valueLabel:disabled {
     color: rgba(255, 255, 255, 0.36);
 }
 
 
-QPushButton {
+.QPushButton {
     background: rgba(255, 255, 255, 0.0605);
     border: 1px solid rgba(255, 255, 255, 0.053);
     border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -34,17 +34,17 @@ QPushButton {
     outline: none;
 }
 
-QPushButton:hover {
+.QPushButton:hover {
     background: rgba(255, 255, 255, 0.0837);
 }
 
-QPushButton:pressed {
+.QPushButton:pressed {
     color: rgba(255, 255, 255, 0.786);
     background: rgba(255, 255, 255, 0.0326);
     border-top: 1px solid rgba(255, 255, 255, 0.053);
 }
 
-QPushButton:disabled {
+.QPushButton:disabled {
     color: rgba(255, 255, 255, 0.3628);
     background: rgba(255, 255, 255, 0.0419);
     border: 1px solid rgba(255, 255, 255, 0.053);
