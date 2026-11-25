@@ -7,7 +7,7 @@ A fluent design widgets library based on PySide6.
 :license: GPLv3 for non-commercial project, see README for more details.
 """
 
-__version__ = "1.11.3"
+__version__ = "1.11.3.1"
 __author__ = "zhiyiYo"
 
 from ._symbols import listDir, listExports, loadExport
