@@ -1,10 +1,88 @@
 # coding:utf-8
-from PySide6.QtCore import QAbstractAnimation, QEasingCurve, QPropertyAnimation, Qt, QEvent, QPoint
-from PySide6.QtGui import QColor, QResizeEvent
-from PySide6.QtWidgets import (QDialog, QGraphicsDropShadowEffect,
-                             QGraphicsOpacityEffect, QHBoxLayout, QWidget, QFrame)
+from PySide6.QtCore import (QAbstractAnimation, QEasingCurve, QPropertyAnimation, Qt, QEvent,
+                            QPoint, QPointF, QRectF, QSize, QSizeF)
+from PySide6.QtGui import QColor, QPainter, QPixmap, QResizeEvent
+from PySide6.QtWidgets import (QDialog, QGraphicsDropShadowEffect, QGraphicsOpacityEffect,
+                               QGraphicsPixmapItem, QGraphicsScene, QHBoxLayout, QStyle,
+                               QStyleOption, QWidget, QFrame)
 
 from ...common.config import isDarkTheme
+
+
+def buildShadowPixmap(panel: QWidget, ratio: float, blurRadius: float, offset, color: QColor):
+    size = panel.size()
+    source = QPixmap(size * ratio)
+    source.setDevicePixelRatio(ratio)
+    source.fill(Qt.transparent)
+    opt = QStyleOption()
+    opt.initFrom(panel)
+    painter = QPainter(source)
+    panel.style().drawPrimitive(QStyle.PE_Widget, opt, painter, panel)
+    painter.end()
+
+    effect = QGraphicsDropShadowEffect()
+    effect.setBlurRadius(blurRadius)
+    effect.setOffset(*offset)
+    effect.setColor(color)
+    bounds = effect.boundingRectFor(QRectF(QPointF(0, 0), QSizeF(size))).toAlignedRect()
+
+    scene = QGraphicsScene()
+    item = QGraphicsPixmapItem(source)
+    item.setGraphicsEffect(effect)
+    scene.addItem(item)
+
+    pixmap = QPixmap(bounds.size() * ratio)
+    pixmap.setDevicePixelRatio(ratio)
+    pixmap.fill(Qt.transparent)
+    out = QPainter(pixmap)
+    scene.render(out, QRectF(QPointF(0, 0), QSizeF(bounds.size())), QRectF(bounds))
+    out.setCompositionMode(QPainter.CompositionMode_DestinationOut)
+    out.drawPixmap(-bounds.left(), -bounds.top(), source)
+    out.end()
+    return bounds, pixmap
+
+
+class ShadowLayer(QWidget):
+    """Cached sibling shadow so QGraphicsEffect does not block child scroll blitting."""
+
+    def __init__(self, panel: QWidget, parent: QWidget):
+        super().__init__(parent)
+        self._panel = panel
+        self._blurRadius = 0.0
+        self._offset = (0.0, 0.0)
+        self._color = QColor()
+        self._origin = QPoint()
+        self._panelSize = QSize()
+        self._pixmap = QPixmap()
+        self.setAttribute(Qt.WA_TransparentForMouseEvents)
+
+    def set(self, blurRadius, offset, color):
+        self._blurRadius = float(blurRadius)
+        self._offset = (float(offset[0]), float(offset[1]))
+        self._color = QColor(color)
+        self.refresh(force=True)
+
+    def refresh(self, force: bool = False):
+        panel = self._panel
+        if panel.parentWidget() is not self.parentWidget() or not panel.isVisible() or panel.size().isEmpty():
+            self.hide()
+            return
+
+        ratio = self.devicePixelRatioF()
+        if force or self._pixmap.isNull() or self._panelSize != panel.size() or self._pixmap.devicePixelRatio() != ratio:
+            bounds, self._pixmap = buildShadowPixmap(panel, ratio, self._blurRadius, self._offset, self._color)
+            self._origin = bounds.topLeft()
+            self._panelSize = panel.size()
+            self.resize(bounds.size())
+
+        self.move(panel.pos() + self._origin)
+        if not self.isVisible():
+            self.stackUnder(panel)
+            self.show()
+
+    def paintEvent(self, e):
+        if not self._pixmap.isNull():
+            QPainter(self).drawPixmap(0, 0, self._pixmap)
 
 
 class MaskDialogBase(QDialog):
@@ -20,6 +98,7 @@ class MaskDialogBase(QDialog):
 
         # dialog box in the center of mask, all widgets take it as parent
         self.widget = QFrame(self, objectName='centerWidget')
+        self._shadowLayer = ShadowLayer(self.widget, self)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setGeometry(0, 0, parent.width(), parent.height())
@@ -46,12 +125,7 @@ class MaskDialogBase(QDialog):
 
     def setShadowEffect(self, blurRadius=60, offset=(0, 10), color=QColor(0, 0, 0, 100)):
         """ add shadow to dialog """
-        shadowEffect = QGraphicsDropShadowEffect(self.widget)
-        shadowEffect.setBlurRadius(blurRadius)
-        shadowEffect.setOffset(*offset)
-        shadowEffect.setColor(color)
-        self.widget.setGraphicsEffect(None)
-        self.widget.setGraphicsEffect(shadowEffect)
+        self._shadowLayer.set(blurRadius, offset, color)
 
     def setMaskColor(self, color: QColor):
         """ set the color of mask """
@@ -83,7 +157,6 @@ class MaskDialogBase(QDialog):
     def done(self, code):
         """ fade out """
         self._pendingDoneCode = code
-        self.widget.setGraphicsEffect(None)
         opacityEffect = QGraphicsOpacityEffect(self)
         self.setGraphicsEffect(opacityEffect)
         opacityAni = QPropertyAnimation(opacityEffect, b'opacity', self)
@@ -128,19 +201,26 @@ class MaskDialogBase(QDialog):
             if e.type() == QEvent.MouseButtonRelease and e.button() == Qt.LeftButton \
                     and self.isClosableOnMaskClicked():
                 self.reject()
-        elif obj is self.widget and self.isDraggable():
-            if e.type() == QEvent.MouseButtonPress and e.button() == Qt.LeftButton:
-                if not self.widget.childrenRegion().contains(e.pos()):
-                    self._dragPos = e.pos()
-                    return True
-            elif e.type() == QEvent.MouseMove and not self._dragPos.isNull():
-                pos = self.widget.pos() + e.pos() - self._dragPos
-                pos.setX(max(0, min(pos.x(), self.width() - self.widget.width())))
-                pos.setY(max(0, min(pos.y(), self.height() - self.widget.height())))
+        elif obj is self.widget:
+            eventType = e.type()
+            if eventType == QEvent.StyleChange:
+                self._shadowLayer.refresh(force=True)
+            elif eventType in (QEvent.Move, QEvent.Resize, QEvent.Show, QEvent.Hide, QEvent.ParentChange):
+                self._shadowLayer.refresh()
 
-                self.widget.move(pos)
-                return True
-            elif e.type() == QEvent.MouseButtonRelease:
-                self._dragPos = QPoint()
+            if self.isDraggable():
+                if eventType == QEvent.MouseButtonPress and e.button() == Qt.LeftButton:
+                    if not self.widget.childrenRegion().contains(e.pos()):
+                        self._dragPos = e.pos()
+                        return True
+                elif eventType == QEvent.MouseMove and not self._dragPos.isNull():
+                    pos = self.widget.pos() + e.pos() - self._dragPos
+                    pos.setX(max(0, min(pos.x(), self.width() - self.widget.width())))
+                    pos.setY(max(0, min(pos.y(), self.height() - self.widget.height())))
+
+                    self.widget.move(pos)
+                    return True
+                elif eventType == QEvent.MouseButtonRelease:
+                    self._dragPos = QPoint()
 
         return super().eventFilter(obj, e)

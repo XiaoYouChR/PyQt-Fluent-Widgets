@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import weakref
 
-from PySide6.QtCore import QParallelAnimationGroup, QPointF, QPropertyAnimation, Qt, QTimer
+from PySide6.QtCore import QParallelAnimationGroup, QPoint, QPointF, QPropertyAnimation, Qt, QTimer
 from PySide6.QtGui import QEnterEvent
 from PySide6.QtWidgets import QApplication, QWidget
 
@@ -154,6 +154,40 @@ def test_hide_mask_dialog_stops_tracking_resize(qtbot, fluentApp):
     window.resize(600, 420)
     qtbot.wait(20)
     assert dialog.size() == hiddenSize
+
+
+def test_mask_dialog_shadow_uses_cached_sibling_and_reclaims(qtbot, fluentApp):
+    window = QWidget()
+    qtbot.addWidget(window)
+    window.resize(400, 300)
+    window.show()
+    qtbot.waitExposed(window)
+
+    dialog = MaskDialogBase(window)
+    dialog.widget.setFixedSize(200, 120)
+    dialog.widget.setStyleSheet("#centerWidget { background: white; border-radius: 10px; }")
+    dialog.show()
+    qtbot.waitExposed(dialog)
+
+    shadow = dialog._shadowLayer
+    assert dialog.widget.graphicsEffect() is None
+    assert shadow.isVisible() is True
+    assert not shadow._pixmap.isNull()
+
+    pixmapKey = shadow._pixmap.cacheKey()
+    oldPos = shadow.pos()
+    dialog.widget.move(dialog.widget.pos().x() + 12, dialog.widget.pos().y() + 8)
+    assert shadow._pixmap.cacheKey() == pixmapKey
+    assert shadow.pos() == oldPos + QPoint(12, 8)
+
+    dialogRef = weakref.ref(dialog)
+    shadowRef = weakref.ref(shadow)
+    dialog.deleteLater()
+    del dialog, shadow
+
+    waitReclaim(qtbot)
+    assert dialogRef() is None
+    assert shadowRef() is None
 
 
 def test_hide_state_tool_tip_stops_timer(qtbot, fluentApp):
