@@ -428,7 +428,8 @@ class ComboBox(QPushButton, ComboBoxBase):
         elif self.isPressed:
             painter.setOpacity(0.7)
 
-        rect = QRectF(self.width()-22, self.height()/2-5+self.arrowAni.y, 10, 10)
+        x = 12 if self.isRightToLeft() else self.width() - 22
+        rect = QRectF(x, self.height()/2-5+self.arrowAni.y, 10, 10)
         if isDarkTheme():
             FIF.ARROW_DOWN.render(painter, rect)
         else:

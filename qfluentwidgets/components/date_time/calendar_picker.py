@@ -90,7 +90,8 @@ class CalendarPicker(QPushButton):
             painter.setOpacity(0.6)
 
         w = 12
-        rect = QRectF(self.width() - 23, self.height()/2 - w/2, w, w)
+        x = 11 if self.isRightToLeft() else self.width() - 23
+        rect = QRectF(x, self.height()/2 - w/2, w, w)
         FIF.CALENDAR.render(painter, rect)
 
     date = Property(QDate, getDate, setDate)
