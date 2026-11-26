@@ -607,7 +607,8 @@ class DropDownButtonBase:
             painter.setOpacity(0.7)
 
         arrowY = self.height() / 2 - 5 + (self.arrowAni.y if self.isEnabled() else 0)
-        rect = QRectF(self.width()-22, arrowY, 10, 10)
+        x = 12 if self.isRightToLeft() else self.width() - 22
+        rect = QRectF(x, arrowY, 10, 10)
         self._drawDropDownIcon(painter, rect)
 
 
@@ -657,7 +658,10 @@ class DropDownToolButton(DropDownButtonBase, ToolButton):
         self._showMenu()
 
     def _drawIcon(self, icon, painter, rect: QRectF):
-        rect.moveLeft(12)
+        if self.isRightToLeft():
+            rect.moveRight(self.width() - 12)
+        else:
+            rect.moveLeft(12)
         return super()._drawIcon(icon, painter, rect)
 
     def paintEvent(self, e):
@@ -717,7 +721,10 @@ class PrimaryDropDownToolButton(PrimaryDropDownButtonBase, PrimaryToolButton):
         self._showMenu()
 
     def _drawIcon(self, icon, painter, rect: QRectF):
-        rect.moveLeft(12)
+        if self.isRightToLeft():
+            rect.moveRight(self.width() - 12)
+        else:
+            rect.moveLeft(12)
         return super()._drawIcon(icon, painter, rect)
 
     def paintEvent(self, e):
