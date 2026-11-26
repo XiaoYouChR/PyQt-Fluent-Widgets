@@ -260,3 +260,29 @@ def test_close_fluent_window_reclaims_window_and_router(qtbot, fluentApp):
     assert ref() is None
     assert qrouter.history == []
     assert len(qrouter.stackHistories) == 0
+
+
+def test_list_widget_items_invalidate_in_shiboken_on_delete(qtbot, fluentApp):
+    from shiboken6 import isValid
+    from qfluentwidgets import LineEdit, PipsPager
+    from qfluentwidgets.components.widgets.line_edit import CompleterMenu
+
+    lineEdit = LineEdit()
+    menu = CompleterMenu(lineEdit)
+    menu.setItems(["alpha", "beta"])
+    menuItem = menu.view.item(0)
+    assert isValid(menuItem)
+
+    pager = PipsPager()
+    pager.setPageNumber(3)
+    pagerItem = pager.item(0)
+    assert isValid(pagerItem)
+
+    menu.deleteLater()
+    lineEdit.deleteLater()
+    pager.deleteLater()
+    del menu, lineEdit, pager
+
+    waitReclaim(qtbot)
+    assert not isValid(menuItem)
+    assert not isValid(pagerItem)

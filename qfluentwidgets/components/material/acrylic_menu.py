@@ -155,11 +155,10 @@ class AcrylicCompleterMenu(AcrylicMenuBase, CompleterMenu):
         self.items = items
 
         QListWidget.addItem(self.view, self.view.createPlaceholderItem(self.view._topMargin()))
-        self.view.addItems(items)
-
-        for i in range(1, self.view.count()):
-            item = self.view.item(i)
+        for text in items:
+            item = QListWidgetItem(text)
             item.setSizeHint(QSize(1, self.itemHeight))
+            QListWidget.addItem(self.view, item)
 
         QListWidget.addItem(self.view, self.view.createPlaceholderItem(self.view._bottomMargin()))
 

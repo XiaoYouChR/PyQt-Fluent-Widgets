@@ -280,7 +280,8 @@ class FlipView(QListWidget):
             return
 
         N = self.count()
-        self.addItems([''] * len(images))
+        for _ in range(len(images)):
+            self.addItem(QListWidgetItem(''))
 
         for i in range(N, self.count()):
             self.setItemImage(i, images[i - N], targetSize=targetSize)

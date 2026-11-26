@@ -1,9 +1,11 @@
 # coding:utf-8
 from enum import Enum
+from functools import lru_cache
+from pathlib import Path
 from typing import Union
 import json
 
-from PySide6.QtCore import QRectF, Qt, QFile, QObject, QRect
+from PySide6.QtCore import QRectF, QResource, Qt, QFile, QObject, QRect
 from PySide6.QtGui import QIcon, QIconEngine, QColor, QPixmap, QImage, QPainter, QFontDatabase, QFont, QAction, QPainterPath
 from PySide6.QtWidgets import QApplication
 
@@ -147,6 +149,17 @@ def getIconColor(theme=Theme.AUTO, reverse=False):
     return color
 
 
+@lru_cache(maxsize=256)
+def svgRenderer(iconPath: str, indexes=None, attrs=()):
+    from PySide6.QtSvg import QSvgRenderer
+    return QSvgRenderer(writeSvg(iconPath, indexes, **dict(attrs)).encode() if attrs else iconPath)
+
+
+def clearCache() -> None:
+    """Release cached QSvgRenderer instances."""
+    svgRenderer.cache_clear()
+
+
 def drawSvgIcon(icon, painter, rect):
     """ draw svg icon
 
@@ -161,6 +174,10 @@ def drawSvgIcon(icon, painter, rect):
     rect: QRect | QRectF
         the rect to render icon
     """
+    if isinstance(icon, str) and icon.startswith(':'):
+        svgRenderer(icon).render(painter, QRectF(rect))
+        return
+
     from PySide6.QtSvg import QSvgRenderer
     renderer = QSvgRenderer(icon)
     renderer.render(painter, QRectF(rect))
@@ -188,14 +205,19 @@ def writeSvg(iconPath: str, indexes=None, **attributes):
     if not iconPath.lower().endswith('.svg'):
         return ""
 
-    f = QFile(iconPath)
-    f.open(QFile.ReadOnly)
+    if iconPath.startswith(':'):
+        resource = QResource(iconPath)
+        data = resource.uncompressedData() if resource.isValid() else b""
+    else:
+        path = Path(iconPath)
+        data = path.read_bytes() if path.is_file() else b""
+
+    if not data:
+        return ""
 
     from PySide6.QtXml import QDomDocument
     dom = QDomDocument()
-    dom.setContent(f.readAll())
-
-    f.close()
+    dom.setContent(data)
 
     # change the color of each path
     pathNodes = dom.elementsByTagName('path')
@@ -322,10 +344,14 @@ class FluentIconBase:
         icon = self.path(theme)
 
         if icon.endswith('.svg'):
-            if attributes:
-                icon = writeSvg(icon, indexes, **attributes).encode()
+            if icon.startswith(':'):
+                attrs = tuple(sorted(attributes.items())) if attributes else ()
+                svgRenderer(icon, tuple(indexes) if indexes else None, attrs).render(painter, QRectF(rect))
+            else:
+                if attributes:
+                    icon = writeSvg(icon, indexes, **attributes).encode()
 
-            drawSvgIcon(icon, painter, rect)
+                drawSvgIcon(icon, painter, rect)
         else:
             icon = QIcon(icon)
             rect = QRectF(rect).toRect()
@@ -466,8 +492,7 @@ class ColoredFluentIcon(FluentIconBase):
             color = self.darkColor if theme == Theme.DARK else self.lightColor
 
         attributes.update(fill=color.name())
-        icon = writeSvg(icon, indexes, **attributes).encode()
-        drawSvgIcon(icon, painter, rect)
+        super().render(painter, rect, theme, indexes, **attributes)
 
 
 

@@ -61,6 +61,8 @@ def unload() -> None:
     from . import style_sheet
     style_sheet.resetAppBundle(liveApp)
 
+    if "qfluentwidgets.common.icon" in sys.modules:
+        sys.modules["qfluentwidgets.common.icon"].clearCache()
     if "qfluentwidgets.common.router" in sys.modules:
         sys.modules["qfluentwidgets.common.router"].qrouter.clear()
     if "qfluentwidgets.components.widgets.info_bar" in sys.modules:

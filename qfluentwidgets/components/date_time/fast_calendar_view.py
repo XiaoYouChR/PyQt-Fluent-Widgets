@@ -147,12 +147,12 @@ class FastYearScrollView(FastScrollViewBase):
         self.years = list(range(self.minYear, self.maxYear+1))
         count = self.cols * self.cols
         years = self.years[:count]
-        self.addItems([str(i) for i in years])
-
-        for i, year in enumerate(years):
-            item = self.item(i)
+        sizeHint = self.sizeHint()
+        for year in years:
+            item = QListWidgetItem(str(year))
             item.setData(Qt.ItemDataRole.UserRole, QDate(year, 1, 1))
-            item.setSizeHint(self.sizeHint())
+            item.setSizeHint(sizeHint)
+            self.addItem(item)
 
     def scrollToDate(self, date: QDate):
         page = (date.year() - self._startYear()) // 10
@@ -195,15 +195,15 @@ class FastMonthScrollView(FastScrollViewBase):
             self.tr('Sep'), self.tr('Oct'), self.tr('Nov'), self.tr('Dec'),
             self.tr('Jan'), self.tr('Feb'), self.tr('Mar'), self.tr('Apr'),
         ]
-        self.addItems(self.months)
-
         # add month items
-        for i in range(len(self.months)):
+        gridSize = self.gridSize()
+        for i, month in enumerate(self.months):
             year = i // 12 + self.minYear
             m = i % 12 + 1
-            item = self.item(i)
+            item = QListWidgetItem(month)
             item.setData(Qt.ItemDataRole.UserRole, QDate(year, m, 1))
-            item.setSizeHint(self.gridSize())
+            item.setSizeHint(gridSize)
+            self.addItem(item)
 
             if year == self.currentDate.year() and m == self.currentDate.month():
                 self.delegate.setCurrentIndex(self.indexFromItem(item))
@@ -273,18 +273,14 @@ class FastDayScrollView(FastScrollViewBase):
             self.addItem(item)
 
         # add day items
-        items, dates = [], []
+        gridSize = self.gridSize()
         endDate = startDate.addDays(self.pageSize() - bias)
         while currentDate < endDate:
-            items.append(str(currentDate.day()))
-            dates.append(QDate(currentDate))
+            item = QListWidgetItem(str(currentDate.day()))
+            item.setData(Qt.ItemDataRole.UserRole, QDate(currentDate))
+            item.setSizeHint(gridSize)
+            self.addItem(item)
             currentDate = currentDate.addDays(1)
-
-        self.addItems(items)
-        for i in range(bias, self.count()):
-            item = self.item(i)
-            item.setData(Qt.ItemDataRole.UserRole, dates[i-bias])
-            item.setSizeHint(self.gridSize())
 
         self.delegate.setCurrentIndex(
             self.model().index(self._dateToRow(self.currentDate)))

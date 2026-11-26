@@ -181,12 +181,12 @@ class PipsPager(QListWidget):
     def setPageNumber(self, n: int):
         """ set the number of page """
         self.clear()
-        self.addItems(['15555'] * n)
-
+        gridSize = self.gridSize()
         for i in range(n):
-            item = self.item(i)
+            item = QListWidgetItem('15555')
             item.setData(Qt.UserRole, i + 1)
-            item.setSizeHint(self.gridSize())
+            item.setSizeHint(gridSize)
+            self.addItem(item)
 
         self.setCurrentIndex(0)
         self.adjustSize()

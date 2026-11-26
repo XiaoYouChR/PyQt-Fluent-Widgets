@@ -2,8 +2,9 @@
 from typing import List, Union
 from PySide6.QtCore import QSize, Qt, QRectF, Signal, QPoint, QTimer, QEvent, QAbstractItemModel, Property, QModelIndex
 from PySide6.QtGui import QPainter, QPainterPath, QIcon, QColor, QAction
-from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLineEdit, QToolButton, QTextEdit,
-                               QPlainTextEdit, QCompleter, QStyle, QWidget, QTextBrowser)
+from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLineEdit, QListWidget, QListWidgetItem,
+                               QToolButton, QTextEdit, QPlainTextEdit, QCompleter, QStyle,
+                               QWidget, QTextBrowser)
 
 
 from ...common.style_sheet import FluentStyleSheet, themeColor, updateDynamicStyle
@@ -305,11 +306,10 @@ class CompleterMenu(RoundMenu):
         self.view.clear()
 
         self.items = items
-        self.view.addItems(items)
-
-        for i in range(self.view.count()):
-            item = self.view.item(i)
+        for text in items:
+            item = QListWidgetItem(text)
             item.setSizeHint(QSize(1, self.itemHeight))
+            QListWidget.addItem(self.view, item)
 
     def _onItemClicked(self, item):
         self._hideMenu(False)
