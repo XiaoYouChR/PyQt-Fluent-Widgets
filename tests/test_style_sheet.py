@@ -5,11 +5,12 @@ import weakref
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QImage
-from PySide6.QtWidgets import QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 
 import qfluentwidgets
 from qfluentwidgets import (
     BodyLabel,
+    CalendarPicker,
     CardWidget,
     CheckBox,
     ComboBox,
@@ -18,6 +19,7 @@ from qfluentwidgets import (
     LineEdit,
     PlainTextEdit,
     PrimaryPushButton,
+    PrimarySplitPushButton,
     PushButton,
     ScrollArea,
     SettingCard,
@@ -25,6 +27,7 @@ from qfluentwidgets import (
     TextBrowser,
     TextEdit,
     Theme,
+    TimePicker,
     ToolButton,
     qconfig,
     setStyleSheet,
@@ -302,3 +305,34 @@ def test_delete_styled_widgets_reclaims_memory(qtbot, fluentApp):
 
     waitReclaim(qtbot)
     assert [r for r in refs if r() is not None] == []
+
+
+def test_apply_app_qss_aligns_push_button_layout_geometry(qtbot, fluentApp):
+    host = QWidget()
+    hostLayout = QHBoxLayout(host)
+    splitButton = PrimarySplitPushButton("Download", host)
+    hostLayout.addWidget(splitButton)
+    qtbot.addWidget(host)
+    host.show()
+    qtbot.waitExposed(host)
+
+    assert splitButton.dropButton.geometry().top() == splitButton.button.geometry().top() == 0
+    assert splitButton.dropButton.geometry().height() == splitButton.button.geometry().height()
+
+    for factory in (
+        lambda parent: PushButton("Action", parent),
+        lambda parent: ComboBox(parent),
+        lambda parent: CalendarPicker(parent),
+        lambda parent: TimePicker(parent),
+    ):
+        container = QWidget()
+        layout = QHBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        widget = factory(container)
+        layout.addWidget(widget)
+        qtbot.addWidget(container)
+        container.show()
+        qtbot.waitExposed(container)
+
+        assert layout.itemAt(0).geometry() == widget.geometry()

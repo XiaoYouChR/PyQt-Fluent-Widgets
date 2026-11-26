@@ -1,12 +1,13 @@
 # coding:utf-8
 from enum import Enum
 from string import Template
+import sys
 from typing import List, Union
 import weakref
 
 from PySide6.QtCore import QFile, QObject, QEvent, Qt
 from PySide6.QtGui import QColor
-from PySide6.QtWidgets import QWidget, QApplication
+from PySide6.QtWidgets import QWidget, QApplication, QPushButton
 from shiboken6 import isValid
 
 from .config import qconfig, Theme, isDarkTheme
@@ -381,6 +382,9 @@ def _applyAppSheet(widget: QWidget, source: FluentStyleSheet, theme: Theme, regi
             binding.detach()
             if widget.styleSheet():
                 widget.setStyleSheet("")
+    # macOS QMacStyle caches Aqua button margins in QPushButton C++ init before app QSS matches the subclass
+    if sys.platform == "darwin" and isinstance(widget, QPushButton):
+        widget.setAttribute(Qt.WidgetAttribute.WA_LayoutUsesWidgetRect)
     return True
 
 
