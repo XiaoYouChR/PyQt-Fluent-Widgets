@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import weakref
 
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QImage
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
@@ -15,11 +16,14 @@ from qfluentwidgets import (
     FluentIcon,
     FluentStyleSheet,
     LineEdit,
+    PlainTextEdit,
     PrimaryPushButton,
     PushButton,
     ScrollArea,
     SettingCard,
     SwitchButton,
+    TextBrowser,
+    TextEdit,
     Theme,
     ToolButton,
     qconfig,
@@ -32,7 +36,6 @@ from qfluentwidgets.common.style_sheet import (
     MANAGED_BEGIN,
     MANAGED_END,
     addStyleSheet,
-    updateDynamicStyle,
     updateStyleSheet,
 )
 
@@ -240,11 +243,45 @@ def test_enable_transparent_background_preserves_button_fill(qtbot, fluentApp):
 def test_update_dynamic_style_refreshes_button_icon_property(qtbot, fluentApp):
     button = PushButton("Action")
     qtbot.addWidget(button)
+    button.show()
+    qtbot.waitExposed(button)
+    widthWithoutIcon = button.sizeHint().width()
+
     assert button.property("hasIcon") is False
     button.setIcon(FluentIcon.PLAY)
     assert button.property("hasIcon") is True
-    updateDynamicStyle(button)
-    assert button.style() is not None
+    assert button.sizeHint().width() > widthWithoutIcon
+
+    button.setIcon(None)
+    assert button.property("hasIcon") is False
+    assert button.sizeHint().width() == widthWithoutIcon
+
+
+def test_app_qss_widgets_keep_font_across_show_and_theme_change(qtbot, fluentApp):
+    container = QWidget()
+    widgets = (
+        PushButton(container),
+        PushButton("Cancel", container),
+        PrimaryPushButton("Confirm", container),
+        TextEdit(container),
+        PlainTextEdit(container),
+        TextBrowser(container),
+    )
+    qtbot.addWidget(container)
+    container.show()
+    qtbot.waitExposed(container)
+
+    for widget in widgets:
+        assert widget.testAttribute(Qt.WidgetAttribute.WA_SetFont)
+        assert widget.font().pixelSize() == 14
+
+    widgets[1].setIcon(FluentIcon.PLAY)
+    setTheme(Theme.DARK)
+    setTheme(Theme.LIGHT)
+
+    for widget in widgets:
+        assert widget.testAttribute(Qt.WidgetAttribute.WA_SetFont)
+        assert widget.font().pixelSize() == 14
 
 
 def test_delete_styled_widgets_reclaims_memory(qtbot, fluentApp):

@@ -608,6 +608,8 @@ def updateDynamicStyle(widget: QWidget):
     """Re-evaluate dynamic QSS properties without detaching QStyle."""
     if widget is None or not isValid(widget):
         return
+    if not widget.testAttribute(Qt.WidgetAttribute.WA_WState_Polished):
+        return
     style = widget.style()
     if style is not None:
         style.unpolish(widget)
